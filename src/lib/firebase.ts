@@ -1,7 +1,17 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, query, where, orderBy, onSnapshot, addDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
+import firebaseConfigRaw from '../../firebase-applet-config.json';
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || (firebaseConfigRaw as any).apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || (firebaseConfigRaw as any).authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || (firebaseConfigRaw as any).projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || (firebaseConfigRaw as any).storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || (firebaseConfigRaw as any).messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || (firebaseConfigRaw as any).appId,
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || (firebaseConfigRaw as any).firestoreDatabaseId
+};
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);

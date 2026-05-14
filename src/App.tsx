@@ -25,7 +25,8 @@ import {
   Users,
   Search as SearchIcon,
   ChevronRight,
-  Globe
+  Globe,
+  Share2
 } from 'lucide-react';
 import { auth, loginWithGoogle, logout } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -477,6 +478,11 @@ export default function App() {
     setTimeout(() => setNotification(null), 3000);
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    showNotification('Havola nusxalandi!');
+  };
+
   useEffect(() => {
     return onAuthStateChanged(auth, async (u) => {
       setUser(u);
@@ -655,7 +661,7 @@ export default function App() {
               <div className="lg:col-span-1 space-y-6">
                 <div className="p-6 bg-white border border-gray-100 rounded-[32px] shadow-sm">
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-black text-xs uppercase tracking-widest text-gray-400">My Neighborhoods</h3>
+                    <h3 className="font-black text-xs uppercase tracking-widest text-gray-400">Mahallarim</h3>
                     <button onClick={() => setIsMahallaModalOpen(true)} className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center hover:bg-black hover:text-white transition-all">
                       <Plus size={16} />
                     </button>
@@ -666,7 +672,7 @@ export default function App() {
                       onClick={() => setActiveMahalla(null)}
                       className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all", !activeMahalla ? "bg-black text-white" : "hover:bg-gray-50 text-gray-500")}
                     >
-                      <Globe size={16} /> Global Feed
+                      <Globe size={16} /> Umumiy lenta
                     </button>
                     {mahallas.map(m => (
                       <div key={m.id} className="relative group/m">
@@ -681,12 +687,22 @@ export default function App() {
                           <ChevronRight size={14} className={cn("transition-transform", activeMahalla?.id === m.id ? "rotate-90" : "")} />
                         </button>
                         {m.ownerId === user.uid && (
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); setIsInviteModalOpen(m); }}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/m:opacity-100 bg-white/10 hover:bg-white/20 p-1.5 rounded-lg transition-all"
-                          >
-                             <Plus size={12} />
-                          </button>
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover/m:opacity-100 transition-all">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setIsInviteModalOpen(m); }}
+                              className="bg-white/10 hover:bg-white/20 p-1.5 rounded-lg"
+                              title="Qo'shish"
+                            >
+                               <Plus size={12} />
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); copyToClipboard(window.location.host); }}
+                              className="bg-white/10 hover:bg-white/20 p-1.5 rounded-lg"
+                              title="Havola"
+                            >
+                               <Share2 size={12} />
+                            </button>
+                          </div>
                         )}
                       </div>
                     ))}
@@ -698,7 +714,7 @@ export default function App() {
 
                 <div className="p-6 bg-white border border-gray-100 rounded-3xl">
                   <h3 className="font-bold flex items-center gap-2 mb-4 text-sm uppercase tracking-wider text-gray-400">
-                    <Filter size={14} /> Filter by Category
+                    <Filter size={14} /> Saralash
                   </h3>
                   <div className="space-y-2">
                     {['All Categories', 'Errands', 'Repairs', 'Tutoring', 'Childcare', 'Elderly Care', 'Other'].map(cat => (
@@ -737,7 +753,7 @@ export default function App() {
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <h2 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
-                        <Zap size={20} className="text-yellow-500" /> Need Help Today
+                        <Zap size={20} className="text-yellow-500" /> Bugun yordam kerak
                       </h2>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -765,7 +781,7 @@ export default function App() {
                   <div className="space-y-12">
                     <div>
                       <h2 className="text-xl font-black mb-6 flex items-center gap-2 uppercase tracking-tight">
-                        <Clock size={20} className="text-blue-500" /> Active Tasks & Posted Needs
+                        <Clock size={20} className="text-blue-500" /> Faol vazifalarim
                       </h2>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {myRequests.map((req: HelpRequest) => (
@@ -821,7 +837,7 @@ export default function App() {
             onClick={() => setIsModalOpen(true)}
             className="bg-black text-white px-8 py-4 rounded-full font-bold shadow-2xl flex items-center gap-3 border border-white/10"
           >
-            <Plus size={20} /> Ask for Help
+            <Plus size={20} /> Yordam so'rash
           </motion.button>
         </div>
       )}
