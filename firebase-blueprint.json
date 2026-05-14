@@ -1,0 +1,87 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Public profile and private data for members of CivicBridge.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique identifier for the user." },
+        "email": { "type": "string", "description": "User's email for invitations." },
+        "displayName": { "type": "string", "description": "User's public name." },
+        "photoURL": { "type": "string", "description": "URL to user's profile picture." },
+        "bio": { "type": "string", "description": "Short description of the user." },
+        "skills": { "type": "array", "description": "List of skills the user can offer." },
+        "location": { "type": "string", "description": "Neighborhood or city." },
+        "karma": { "type": "number", "description": "Community reputation score." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isAdmin": { "type": "boolean", "description": "Whether the user is a system admin." }
+      },
+      "required": ["uid", "displayName", "email", "createdAt"]
+    },
+    "Mahalla": {
+      "title": "Community Group",
+      "description": "A local neighborhood group (Mahalla) for private help requests.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "members": { "type": "array", "description": "List of user UIDs in this Mahalla." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "ownerId", "members", "createdAt"]
+    },
+    "Request": {
+      "title": "Help Request",
+      "description": "A post describing help needed by a community member.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "requesterId": { "type": "string" },
+        "mahallaId": { "type": "string", "description": "Optional ID of the Mahalla this request belongs to." },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string", "enum": ["errands", "repairs", "tutoring", "childcare", "elderly", "other"] },
+        "type": { "type": "string", "enum": ["voluntary", "paid"] },
+        "budget": { "type": "number", "description": "Offered amount if type is paid." },
+        "urgency": { "type": "string", "enum": ["low", "medium", "high"] },
+        "status": { "type": "string", "enum": ["open", "assigned", "completed", "cancelled"] },
+        "assigneeId": { "type": "string", "description": "UID of the user helping." },
+        "location": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["requesterId", "title", "category", "type", "status", "createdAt"]
+    },
+    "Message": {
+      "title": "Chat Message",
+      "description": "Messages exchanged between neighbors.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "senderId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "senderId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users": {
+        "schema": "User",
+        "description": "Profiles of community members."
+    },
+    "mahallas": {
+        "schema": "Mahalla",
+        "description": "Neighborhood community groups."
+    },
+    "requests": {
+        "schema": "Request",
+        "description": "All community help requests."
+    },
+    "requests/{requestId}/messages": {
+        "schema": "Message",
+        "description": "Real-time communication for specific requests."
+    }
+  }
+}

@@ -1,0 +1,128 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global helpers
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isVerified() { return request.auth.token.email_verified == true; }
+    function isMahallaMember(mahallaId) {
+      return isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/mahallas/$(mahallaId)).data.members;
+    }
+
+    // --- Users ---
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isOwner(userId) 
+                    && isValidUser(incoming())
+                    && incoming().uid == request.auth.uid
+                    && incoming().email == request.auth.token.email
+                    && incoming().createdAt == request.time
+                    && incoming().karma == 0;
+      allow update: if (isOwner(userId) && (
+                      isValidUser(incoming()) &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'bio', 'skills', 'location'])
+                    )) || (
+                      // Karma Awarding: Only allow karma increment if task is completed
+                      isSignedIn() && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['karma']) &&
+                      incoming().karma == (existing().karma + 10)
+                    );
+    }
+
+    function isValidUser(data) {
+      return data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 100
+             && data.email is string
+             && (!('bio' in data) || (data.bio is string && data.bio.size() <= 500))
+             && (!('location' in data) || (data.location is string && data.location.size() <= 100))
+             && (!('skills' in data) || (data.skills is list && data.skills.size() <= 20))
+             && data.karma is number;
+    }
+
+    // --- Mahallas ---
+    match /mahallas/{mahallaId} {
+      allow read: if isSignedIn() && (isOwner(existing().ownerId) || request.auth.uid in existing().members);
+      allow create: if isSignedIn() 
+                    && isValidMahalla(incoming()) 
+                    && incoming().ownerId == request.auth.uid 
+                    && incoming().members.size() >= 1
+                    && incoming().members[0] == request.auth.uid
+                    && incoming().createdAt == request.time;
+      allow update: if isSignedIn() && isOwner(existing().ownerId) 
+                    && isValidMahalla(incoming())
+                    && incoming().ownerId == existing().ownerId; // Owner immutable
+    }
+
+    function isValidMahalla(data) {
+      return data.name is string && data.name.size() >= 2 && data.name.size() <= 100
+             && data.members is list && data.members.size() <= 100
+             && (!('description' in data) || (data.description is string && data.description.size() <= 500));
+    }
+
+    // --- Requests ---
+    match /requests/{requestId} {
+      allow read: if isSignedIn() && (
+        resource.data.get('mahallaId', null) == null ||
+        isMahallaMember(resource.data.mahallaId) ||
+        resource.data.requesterId == request.auth.uid
+      );
+
+      allow create: if isSignedIn() 
+                    && isValidRequest(incoming())
+                    && incoming().requesterId == request.auth.uid
+                    && incoming().status == 'open'
+                    && incoming().createdAt == request.time
+                    && (incoming().get('mahallaId', null) == null || isMahallaMember(incoming().mahallaId));
+      
+      allow update: if isSignedIn() && isValidRequest(incoming()) && (
+        // Requester actions
+        (isOwner(existing().requesterId) && (
+          // Cancel/Delete or Mark Complete
+          (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) && incoming().status in ['completed', 'cancelled', 'open']) ||
+          // Edit details
+          (incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'category', 'urgency', 'updatedAt']) && existing().status == 'open')
+        )) ||
+        // Helper actions (Assigning self)
+        (incoming().diff(existing()).affectedKeys().hasOnly(['assigneeId', 'status', 'updatedAt']) 
+         && incoming().assigneeId == request.auth.uid 
+         && existing().status == 'open' 
+         && incoming().status == 'assigned'
+         && (existing().get('mahallaId', null) == null || isMahallaMember(existing().mahallaId)))
+      );
+    }
+
+    function isValidRequest(data) {
+      return data.title is string && data.title.size() >= 5 && data.title.size() <= 200
+             && data.requesterId is string
+             && data.type in ['voluntary', 'paid']
+             && data.category in ['errands', 'repairs', 'tutoring', 'childcare', 'elderly', 'other']
+             && data.status in ['open', 'assigned', 'completed', 'cancelled']
+             && (!('budget' in data) || data.budget is number)
+             && (!('mahallaId' in data) || data.mahallaId is string)
+             && (!('updatedAt' in data) || data.updatedAt == request.time);
+    }
+
+    // --- Messages ---
+    match /requests/{requestId}/messages/{messageId} {
+      allow read: if isSignedIn() && (
+        isOwner(get(/databases/$(database)/documents/requests/$(requestId)).data.requesterId) ||
+        isOwner(get(/databases/$(database)/documents/requests/$(requestId)).data.assigneeId)
+      );
+      allow create: if isSignedIn() && (
+        isOwner(get(/databases/$(database)/documents/requests/$(requestId)).data.requesterId) ||
+        isOwner(get(/databases/$(database)/documents/requests/$(requestId)).data.assigneeId)
+      ) && incoming().senderId == request.auth.uid
+        && incoming().createdAt == request.time;
+    }
+  }
+}
