@@ -30,8 +30,8 @@ service cloud.firestore {
                     && incoming().createdAt == request.time
                     && incoming().karma == 0;
       allow update: if (isOwner(userId) && (
-                      isValidUser(incoming()) &&
-                      incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'bio', 'skills', 'location'])
+                      isValidUserUpdate(incoming(), existing()) &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'bio', 'skills', 'location', 'updatedAt'])
                     )) || (
                       // Karma Awarding: Only allow karma increment if task is completed
                       isSignedIn() && 
@@ -40,9 +40,14 @@ service cloud.firestore {
                     );
     }
 
+    function isValidUserUpdate(incoming, existing) {
+       return incoming.displayName is string && incoming.displayName.size() >= 2
+              && (!('updatedAt' in incoming.diff(existing).affectedKeys()) || incoming.updatedAt == request.time);
+    }
+
     function isValidUser(data) {
       return data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 100
-             && data.email is string
+             && (!('email' in data) || data.email is string)
              && (!('bio' in data) || (data.bio is string && data.bio.size() <= 500))
              && (!('location' in data) || (data.location is string && data.location.size() <= 100))
              && (!('skills' in data) || (data.skills is list && data.skills.size() <= 20))
@@ -51,22 +56,31 @@ service cloud.firestore {
 
     // --- Mahallas ---
     match /mahallas/{mahallaId} {
-      allow read: if isSignedIn() && (isOwner(existing().ownerId) || request.auth.uid in existing().members);
+      allow read: if isSignedIn(); // Allow reading for all to see members
       allow create: if isSignedIn() 
                     && isValidMahalla(incoming()) 
                     && incoming().ownerId == request.auth.uid 
                     && incoming().members.size() >= 1
                     && incoming().members[0] == request.auth.uid
                     && incoming().createdAt == request.time;
-      allow update: if isSignedIn() && isOwner(existing().ownerId) 
-                    && isValidMahalla(incoming())
-                    && incoming().ownerId == existing().ownerId; // Owner immutable
+                      allow update: if isSignedIn() && (
+                                      (isOwner(existing().ownerId) && isValidMahalla(incoming()) && incoming().ownerId == existing().ownerId) ||
+                                      // Allow anyone to add or remove themselves as a member
+                                      (incoming().diff(existing()).affectedKeys().hasOnly(['members']) && 
+                                       (
+                                         (incoming().members.size() == existing().members.size() + 1 && request.auth.uid in incoming().members) ||
+                                         (incoming().members.size() == existing().members.size() - 1 && !(request.auth.uid in incoming().members) && request.auth.uid in existing().members)
+                                       )
+                                      )
+                                    );
+      allow delete: if isSignedIn() && isOwner(resource.data.ownerId);
     }
 
     function isValidMahalla(data) {
       return data.name is string && data.name.size() >= 2 && data.name.size() <= 100
              && data.members is list && data.members.size() <= 100
-             && (!('description' in data) || (data.description is string && data.description.size() <= 500));
+             && (!('description' in data) || (data.description is string && data.description.size() <= 1000))
+             && (!('announcement' in data) || (data.announcement is string && data.announcement.size() <= 1000));
     }
 
     // --- Requests ---
@@ -105,11 +119,30 @@ service cloud.firestore {
       return data.title is string && data.title.size() >= 5 && data.title.size() <= 200
              && data.requesterId is string
              && data.type in ['voluntary', 'paid']
-             && data.category in ['errands', 'repairs', 'tutoring', 'childcare', 'elderly', 'other']
+             && data.category in ['errands', 'repairs', 'tutoring', 'childcare', 'elderly care', 'other']
              && data.status in ['open', 'assigned', 'completed', 'cancelled']
              && (!('budget' in data) || data.budget is number)
-             && (!('mahallaId' in data) || data.mahallaId is string)
+             && (!('mahallaId' in data) || data.mahallaId == null || data.mahallaId is string)
              && (!('updatedAt' in data) || data.updatedAt == request.time);
+    }
+
+    // --- Events ---
+    match /events/{eventId} {
+      allow read: if isSignedIn() && isMahallaMember(resource.data.mahallaId);
+      allow create: if isSignedIn() 
+                    && isValidEvent(incoming())
+                    && incoming().userId == request.auth.uid
+                    && incoming().timestamp == request.time
+                    && isMahallaMember(incoming().mahallaId);
+    }
+
+    function isValidEvent(data) {
+      return data.mahallaId is string 
+             && data.type in ['request_created', 'help_responded', 'help_completed']
+             && data.description is string && data.description.size() <= 500
+             && data.userId is string
+             && data.userName is string && data.userName.size() <= 100
+             && data.timestamp == request.time;
     }
 
     // --- Messages ---

@@ -26,11 +26,26 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "description": { "type": "string" },
+        "announcement": { "type": "string", "description": "Pinned announcement for the group." },
         "ownerId": { "type": "string" },
         "members": { "type": "array", "description": "List of user UIDs in this Mahalla." },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "ownerId", "members", "createdAt"]
+    },
+    "Event": {
+      "title": "Activity Wall Event",
+      "description": "A log of community actions like requests created or help completed.",
+      "type": "object",
+      "properties": {
+        "mahallaId": { "type": "string" },
+        "type": { "type": "string", "enum": ["request_created", "help_responded", "help_completed"] },
+        "description": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["mahallaId", "type", "description", "userId", "userName", "timestamp"]
     },
     "Request": {
       "title": "Help Request",
@@ -82,6 +97,10 @@
     "requests/{requestId}/messages": {
         "schema": "Message",
         "description": "Real-time communication for specific requests."
+    },
+    "events": {
+        "schema": "Event",
+        "description": "Historical log of community activities."
     }
   }
 }

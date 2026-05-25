@@ -1,6 +1,8 @@
 {
   "name": "CivicBridge",
-  "description": "A community empowerment platform connecting neighbors for mutual aid, skill sharing, and local problem-solving.",
+  "description": "Premium community aid network with trust-based karma logic, mahalla activity walls, and real-time mutual help orchestration.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

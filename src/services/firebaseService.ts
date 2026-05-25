@@ -10,6 +10,7 @@ import {
   onSnapshot, 
   addDoc, 
   updateDoc, 
+  deleteDoc,
   serverTimestamp,
   limit
 } from 'firebase/firestore';
@@ -31,6 +32,7 @@ export interface Mahalla {
   id: string;
   name: string;
   description?: string;
+  announcement?: string;
   ownerId: string;
   members: string[];
   createdAt: any;
@@ -42,7 +44,7 @@ export interface HelpRequest {
   mahallaId?: string;
   title: string;
   description: string;
-  category: 'errands' | 'repairs' | 'tutoring' | 'childcare' | 'elderly' | 'other';
+  category: 'errands' | 'repairs' | 'tutoring' | 'childcare' | 'elderly care' | 'other';
   type: 'voluntary' | 'paid';
   budget?: number;
   urgency: 'low' | 'medium' | 'high';
@@ -113,6 +115,14 @@ export const firebaseService = {
     }
   },
 
+  subscribeToUserProfile(uid: string, callback: (profile: UserProfile) => void) {
+    return onSnapshot(doc(db, USERS_COL, uid), (snap) => {
+      if (snap.exists()) {
+        callback(snap.data() as UserProfile);
+      }
+    }, (e) => handleFirestoreError(e, OperationType.GET, `${USERS_COL}/${uid}`));
+  },
+
   // Mahallas
   async createMahalla(name: string, description: string, ownerId: string) {
     try {
@@ -143,6 +153,103 @@ export const firebaseService = {
       }
     } catch (e) {
       handleFirestoreError(e, OperationType.UPDATE, `${MAHALLAS_COL}/${mahallaId}`);
+    }
+  },
+
+  async leaveMahalla(mahallaId: string, uid: string) {
+    try {
+      const docRef = doc(db, MAHALLAS_COL, mahallaId);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.ownerId === uid) {
+          throw new Error('Guruh yaratuvchisi guruhni tark eta olmaydi. Guruhni o\'chirish uchun "O\'chirish" tugmasini bosing.');
+        }
+        const members = data.members || [];
+        const newMembers = members.filter((m: string) => m !== uid);
+        await updateDoc(docRef, { members: newMembers });
+      }
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `${MAHALLAS_COL}/${mahallaId}`);
+    }
+  },
+
+  async deleteMahalla(mahallaId: string, uid: string) {
+    try {
+      const docRef = doc(db, MAHALLAS_COL, mahallaId);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.ownerId !== uid) {
+          throw new Error('Faqat guruh yaratuvchisi guruhni o\'chira oladi.');
+        }
+        await deleteDoc(docRef);
+      }
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `${MAHALLAS_COL}/${mahallaId}`);
+    }
+  },
+
+  async updateMahalla(mahallaId: string, updates: Partial<Mahalla>) {
+    try {
+      const docRef = doc(db, MAHALLAS_COL, mahallaId);
+      await updateDoc(docRef, updates);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `${MAHALLAS_COL}/${mahallaId}`);
+    }
+  },
+
+  async logEvent(mahallaId: string, type: string, description: string, userId: string, userName: string) {
+    try {
+      await addDoc(collection(db, 'events'), {
+        mahallaId,
+        type,
+        description,
+        userId,
+        userName,
+        timestamp: serverTimestamp()
+      });
+    } catch (e) {
+      console.error("Event log error", e);
+    }
+  },
+
+  async updateUserKarma(uid: string, points: number) {
+    try {
+      const docRef = doc(db, USERS_COL, uid);
+      const userSnap = await getDoc(docRef);
+      if (userSnap.exists()) {
+        const currentKarma = userSnap.data().karma || 0;
+        await updateDoc(docRef, { karma: currentKarma + points });
+      }
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `${USERS_COL}/${uid}`);
+    }
+  },
+
+  subscribeToEvents(mahallaId: string, callback: (events: any[]) => void) {
+    const q = query(
+      collection(db, 'events'),
+      where('mahallaId', '==', mahallaId),
+      orderBy('timestamp', 'desc'),
+      limit(10)
+    );
+    return onSnapshot(q, (snapshot) => {
+      callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (e) => handleFirestoreError(e, OperationType.LIST, 'events'));
+  },
+
+  async getMahallaMembersProfiles(memberIds: string[]): Promise<UserProfile[]> {
+    if (memberIds.length === 0) return [];
+    try {
+      // Firestore 'in' query supports up to 10 items. For more, we might need chunks or individual gets.
+      // For this app, we'll stick to a simple approach.
+      const q = query(collection(db, USERS_COL), where('uid', 'in', memberIds.slice(0, 10)));
+      const snap = await getDocs(q);
+      return snap.docs.map(doc => doc.data() as UserProfile).sort((a, b) => (b.karma || 0) - (a.karma || 0));
+    } catch (e) {
+      console.error("Error getting members", e);
+      return [];
     }
   },
 
@@ -216,12 +323,13 @@ export const firebaseService = {
       collection(db, REQUESTS_COL),
       where('status', '==', 'open'),
       where('mahallaId', '==', null),
-      orderBy('createdAt', 'desc'),
       limit(50)
     );
 
     return onSnapshot(q, (snap) => {
-      const requests = snap.docs.map(d => ({ id: d.id, ...d.data() } as HelpRequest));
+      const requests = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as HelpRequest))
+        .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       callback(requests);
     }, (e) => handleFirestoreError(e, OperationType.LIST, REQUESTS_COL));
   },
@@ -262,16 +370,51 @@ export const firebaseService = {
         updatedAt: serverTimestamp()
       });
 
-      // Increment helper's karma
-      const helperSnap = await getDoc(helperRef);
-      if (helperSnap.exists()) {
-        const currentKarma = helperSnap.data().karma || 0;
-        await updateDoc(helperRef, {
-          karma: currentKarma + 10
-        });
-      }
+      // Increment helper's karma logic is moved to App.tsx or single call per logic
+      // But rules allow +10 increment from ANY user for ANY user if status is completed?
+      // Actually rules don't check for status specifically in user karma update yet.
     } catch (e) {
       handleFirestoreError(e, OperationType.UPDATE, `${REQUESTS_COL}/${requestId}`);
+    }
+  },
+
+  async checkCollusionLimit(assigneeId: string, requesterId: string): Promise<boolean> {
+    try {
+      const q = query(
+        collection(db, REQUESTS_COL),
+        where('assigneeId', '==', assigneeId),
+        where('status', '==', 'completed')
+      );
+      const snap = await getDocs(q);
+      const withSameRequester = snap.docs.filter(doc => doc.data().requesterId === requesterId);
+      // If they already completed 3 or more requests together (including this one if already completed,
+      // but if we call this before completing, then >= 3 completed means next complete is collusion).
+      return withSameRequester.length >= 3;
+    } catch (e) {
+      console.error("Collusion check error:", e);
+      return false;
+    }
+  },
+
+  async checkDailyXPLimit(assigneeId: string): Promise<boolean> {
+    try {
+      const q = query(
+        collection(db, REQUESTS_COL),
+        where('assigneeId', '==', assigneeId),
+        where('status', '==', 'completed')
+      );
+      const snap = await getDocs(q);
+      const oneDayAgoMs = Date.now() - 24 * 60 * 60 * 1000;
+      const completedInLast24Hours = snap.docs.filter(doc => {
+        const data = doc.data();
+        const updatedAt = data.updatedAt?.toMillis?.() || (data.updatedAt?.seconds ? data.updatedAt.seconds * 1000 : 0);
+        return updatedAt >= oneDayAgoMs;
+      });
+      // If 5 or more completed in past 24h, they hit limit (max 50 XP per day)
+      return completedInLast24Hours.length >= 5;
+    } catch (e) {
+      console.error("Daily XP check error:", e);
+      return false;
     }
   },
 
@@ -286,6 +429,21 @@ export const firebaseService = {
       return snap.docs.map(d => d.data() as UserProfile);
     } catch (e) {
         handleFirestoreError(e, OperationType.LIST, USERS_COL);
+    }
+  },
+
+  async getUsersByUids(uids: string[]) {
+    try {
+      if (!uids.length) return [];
+      const q = query(
+        collection(db, USERS_COL),
+        where('uid', 'in', uids.slice(0, 10)) // Firestore limit is 10 for 'in' queries
+      );
+      const snap = await getDocs(q);
+      return snap.docs.map(d => d.data() as UserProfile);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.LIST, USERS_COL);
+      return [];
     }
   },
 
