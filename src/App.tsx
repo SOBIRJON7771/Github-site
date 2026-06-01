@@ -40,7 +40,8 @@ import {
   Wrench,
   ShoppingBag,
   Compass,
-  ShieldAlert
+  ShieldAlert,
+  HelpCircle
 } from 'lucide-react';
 import { auth, loginWithGoogle, logout } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -69,7 +70,8 @@ const Navbar = ({
   onProfileClick, 
   resetView, 
   mainTab, 
-  setMainTab 
+  setMainTab,
+  onLogin
 }: { 
   user: User | null; 
   profile: UserProfile | null; 
@@ -77,31 +79,32 @@ const Navbar = ({
   resetView: () => void; 
   mainTab: 'home' | 'feed' | 'mahallas' | 'rewards'; 
   setMainTab: (tab: 'home' | 'feed' | 'mahallas' | 'rewards') => void; 
+  onLogin?: () => void;
 }) => {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 px-4 py-6 md:py-8">
-      <div className="max-w-7xl mx-auto backdrop-blur-2xl bg-white/75 rounded-[32px] px-6 md:px-8 py-4 md:py-5 flex justify-between items-center border border-white/60 shadow-[0_32px_64px_-16px_rgba(15,23,42,0.06),0_16px_32px_-8px_rgba(15,23,42,0.02)] transition-all">
+    <nav className="fixed top-0 left-0 right-0 z-50 px-4 py-4 md:py-5">
+      <div className="max-w-7xl mx-auto backdrop-blur-xl bg-white/80 rounded-2xl px-5 md:px-7 py-3 md:py-3.5 flex justify-between items-center border border-slate-200/50 shadow-[0_15px_35px_-10px_rgba(15,23,42,0.06),0_1px_2px_rgba(15,23,42,0.02)] transition-all">
         <div 
           onClick={() => { resetView(); setMainTab('home'); }}
-          className="flex items-center gap-3 md:gap-4 shrink-0 transition-all hover:scale-[1.02] cursor-pointer group"
+          className="flex items-center gap-3 shrink-0 transition-transform active:scale-98 cursor-pointer group"
         >
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 rounded-[18px] md:rounded-[22px] flex items-center justify-center text-white shadow-2xl shadow-black/20 overflow-hidden relative">
+          <div className="w-9 h-9 md:w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white shadow-lg overflow-hidden relative">
              <div className="absolute inset-0 bg-blue-600 opacity-0 group-hover:opacity-10 transition-opacity"></div>
-            <Heart size={18} fill="white" className="relative z-10 animate-pulse group-hover:scale-110 transition-transform" />
+            <Heart size={15} fill="white" className="relative z-10 transition-transform group-hover:scale-110" />
           </div>
           <div>
-            <span className="font-display font-black text-xl md:text-2xl tracking-tighter block leading-none text-slate-900">CivicBridge</span>
-            <span className="text-[9px] md:text-[10px] text-blue-600 font-extrabold uppercase tracking-[0.25em] mt-1.5 md:mt-2 block opacity-60">O'zaro Yordam</span>
+            <span className="font-display font-bold text-lg md:text-xl tracking-tight block leading-none text-slate-900">CivicBridge</span>
+            <span className="text-[8px] text-blue-600 font-bold uppercase tracking-widest mt-1 block opacity-80">Raqamli Ko'mak</span>
           </div>
         </div>
 
         {user && (
-          <div className="hidden lg:flex items-center gap-1 bg-slate-100/65 p-1 rounded-2xl border border-slate-200/50 backdrop-blur-md">
+          <div className="hidden lg:flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
             {[
-              { id: 'home', label: 'Tushuntirish', icon: <Compass size={14} /> },
-              { id: 'feed', label: 'E\'lonlar', icon: <Heart size={14} /> },
-              { id: 'mahallas', label: 'Mahallalar', icon: <Users size={14} /> },
-              { id: 'rewards', label: 'Reyting & Sovrin', icon: <Trophy size={14} /> },
+              { id: 'home', label: 'Tushuntirish', icon: <Compass size={13} /> },
+              { id: 'feed', label: 'Yordam e\'lonlari', icon: <Heart size={13} /> },
+              { id: 'mahallas', label: 'Mahallalar', icon: <Users size={13} /> },
+              { id: 'rewards', label: 'Reyting & Sovrin', icon: <Trophy size={13} /> },
             ].map(tab => {
               const isActive = mainTab === tab.id;
               return (
@@ -109,20 +112,20 @@ const Navbar = ({
                   key={tab.id}
                   onClick={() => setMainTab(tab.id as any)}
                   className={cn(
-                    "px-5 py-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 relative transition-all active:scale-95 duration-200 select-none",
+                    "px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider flex items-center gap-2 relative transition-all active:scale-95 duration-200 select-none",
                     isActive 
-                      ? "text-slate-950 font-black" 
-                      : "text-slate-500 hover:text-slate-950"
+                      ? "text-slate-950 font-extrabold" 
+                      : "text-slate-500 hover:text-slate-800"
                   )}
                 >
                   {isActive && (
                     <motion.div
                       layoutId="activeTabPill"
-                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                      className="absolute inset-0 bg-white shadow-[0_4px_12px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.02)] border border-slate-200/50 rounded-xl"
+                      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                      className="absolute inset-0 bg-white shadow-sm border border-slate-200/50 rounded-lg"
                     />
                   )}
-                  <span className="relative z-10 flex items-center gap-2">
+                  <span className="relative z-10 flex items-center gap-1.5">
                     {tab.icon}
                     <span>{tab.label}</span>
                   </span>
@@ -132,47 +135,44 @@ const Navbar = ({
           </div>
         )}
 
-        <div className="flex items-center gap-4 md:gap-6">
+        <div className="flex items-center gap-4">
           {user ? (
-            <div className="flex items-center gap-4 md:gap-6">
+            <div className="flex items-center gap-4">
               <button 
                 onClick={onProfileClick}
-                className="flex items-center gap-3 md:gap-4 group transition-all"
+                className="flex items-center gap-3 group transition-all"
               >
-                <div className="text-right hidden md:block group-hover:opacity-80 transition-opacity">
-                  <p className="text-sm font-black tracking-tight text-slate-900 uppercase">
+                <div className="text-right hidden md:block">
+                  <p className="text-xs font-bold tracking-tight text-slate-800">
                     {profile?.displayName?.split(' ')[0]} 
-                    <span className="text-blue-600 ml-1">#{profile?.karma || 0}</span>
+                    <span className="text-blue-600 ml-1 font-extrabold">#{profile?.karma || 0} XP</span>
                   </p>
-                  <div className="flex items-center gap-2 mt-1 justify-end">
-                    <span className="text-[8px] font-black bg-slate-900 text-white px-2 py-0.5 rounded-full uppercase tracking-widest leading-none">Citizen</span>
-                  </div>
+                  <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{getKarmaTier(profile?.karma || 0)}</p>
                 </div>
-                <div className="relative group">
-                  <div className="absolute -inset-1.5 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-[22px] blur opacity-25 group-hover:opacity-60 transition duration-500"></div>
+                <div className="relative">
                   <img 
                     src={user.photoURL || ''} 
-                    className="relative w-10 h-10 md:w-11 md:h-11 rounded-[16px] md:rounded-[18px] border-2 border-white shadow-xl transition-all group-hover:scale-110" 
+                    className="w-9 h-9 rounded-xl border border-slate-200 shadow-sm transition-transform group-hover:scale-105" 
                     alt="Profile" 
                   />
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full"></div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border border-white rounded-full"></div>
                 </div>
               </button>
-              <div className="w-px h-8 bg-slate-200 hidden md:block"></div>
+              <div className="w-px h-6 bg-slate-200 hidden md:block"></div>
               <button 
                 onClick={logout}
-                className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-2xl transition-all border border-slate-100/50 hover:border-rose-100"
-                title="Log out"
+                className="w-9 h-9 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-xl transition-all border border-slate-100 hover:border-rose-100"
+                title="Tizimdan chiqish"
               >
-                <LogOut size={18} />
+                <LogOut size={15} />
               </button>
             </div>
           ) : (
             <button 
-              onClick={loginWithGoogle}
-              className="bg-slate-900 text-white px-6 md:px-10 py-3.5 md:py-4 rounded-[20px] md:rounded-[24px] text-xs font-black hover:bg-black transition-all flex items-center gap-2.5 md:gap-3 premium-shadow active:scale-95 uppercase tracking-[0.2em]"
+              onClick={onLogin || loginWithGoogle}
+              className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-[11px] font-bold hover:bg-black transition-all flex items-center gap-2 active:scale-95 uppercase tracking-widest"
             >
-              Kirish <ArrowRight size={16} />
+              Kirish <ArrowRight size={14} />
             </button>
           )}
         </div>
@@ -1089,6 +1089,19 @@ const CreateRequestModal = ({ onClose, mahallas, showNotification }: { onClose: 
     mahallaId: ''
   });
 
+  const [isMahallaOpen, setIsMahallaOpen] = useState(false);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [isTypeOpen, setIsTypeOpen] = useState(false);
+
+  const categoryLabels: Record<string, string> = {
+    errands: "Bozorlik / Yumush",
+    repairs: "Ta'mirlash",
+    tutoring: "O'qitish",
+    childcare: "Bolalar parvarishi",
+    'elderly care': "Keksalar yordami",
+    other: "Boshqa"
+  };
+
   const handleAiSuggest = async () => {
     if (!formData.title || !formData.description) {
       showNotification('Iltimos, avval sarlavha va tavsifni yozing.', 'error');
@@ -1216,35 +1229,117 @@ const CreateRequestModal = ({ onClose, mahallas, showNotification }: { onClose: 
             <div className="space-y-2">
               <label className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Ko'rinish</label>
               <div className="relative">
-                <select 
-                  className="w-full px-8 py-5 bg-slate-50 rounded-[24px] focus:outline-none focus:ring-2 focus:ring-blue-600 appearance-none font-bold text-sm cursor-pointer border border-transparent hover:border-slate-200 transition-all"
-                  value={formData.mahallaId}
-                  onChange={(e) => setFormData({...formData, mahallaId: e.target.value})}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMahallaOpen(!isMahallaOpen);
+                    setIsCategoryOpen(false);
+                    setIsTypeOpen(false);
+                  }}
+                  className="w-full px-6 py-5 bg-slate-50 hover:bg-slate-100 rounded-[24px] border border-transparent hover:border-slate-200 transition-all text-left font-bold text-sm flex items-center justify-between select-none"
                 >
-                  <option value="">Umumiy (Hamma uchun)</option>
-                  {mahallas.map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
-                <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 pointer-events-none" size={16} />
+                  <span className="truncate">
+                    {formData.mahallaId ? (mahallas.find(m => m.id === formData.mahallaId)?.name) : "Umumiy (Hamma uchun)"}
+                  </span>
+                  <ChevronRight className={cn("text-slate-400 transition-transform duration-200 shrink-0", isMahallaOpen ? "rotate-90 text-slate-900" : "rotate-0")} size={15} />
+                </button>
+                
+                {isMahallaOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsMahallaOpen(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      className="absolute left-0 right-0 mt-2 bg-white rounded-[24px] border border-slate-100 shadow-[0_20px_40px_rgba(15,23,42,0.12)] p-2 z-50 max-h-[180px] overflow-y-auto scrollbar-none"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData({ ...formData, mahallaId: '' });
+                          setIsMahallaOpen(false);
+                        }}
+                        className={cn(
+                          "w-full px-4 py-3 rounded-[16px] text-xs font-bold text-left hover:bg-slate-50 transition-all flex items-center justify-between",
+                          !formData.mahallaId ? "bg-slate-50 text-blue-600" : "text-slate-600"
+                        )}
+                      >
+                        <span>Umumiy (Hamma uchun)</span>
+                        {!formData.mahallaId && <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>}
+                      </button>
+                      {mahallas.map(m => {
+                        const isSelected = formData.mahallaId === m.id;
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, mahallaId: m.id });
+                              setIsMahallaOpen(false);
+                            }}
+                            className={cn(
+                              "w-full px-4 py-3 rounded-[16px] text-xs font-bold text-left hover:bg-slate-50 transition-all mt-1 flex items-center justify-between",
+                              isSelected ? "bg-slate-50 text-blue-600" : "text-slate-600"
+                            )}
+                          >
+                            <span className="truncate">{m.name}</span>
+                            {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>}
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  </>
+                )}
               </div>
             </div>
             <div className="space-y-2">
               <label className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Kategoriyasi</label>
               <div className="relative">
-                <select 
-                  className="w-full px-8 py-5 bg-slate-50 rounded-[24px] focus:outline-none focus:ring-2 focus:ring-blue-600 appearance-none font-bold text-sm cursor-pointer border border-transparent hover:border-slate-200 transition-all"
-                  value={formData.category}
-                  onChange={(e) => setFormData({...formData, category: e.target.value as any})}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCategoryOpen(!isCategoryOpen);
+                    setIsMahallaOpen(false);
+                    setIsTypeOpen(false);
+                  }}
+                  className="w-full px-6 py-5 bg-slate-50 hover:bg-slate-100 rounded-[24px] border border-transparent hover:border-slate-200 transition-all text-left font-bold text-sm flex items-center justify-between select-none"
                 >
-                  <option value="errands">Bozorlik / Yumush</option>
-                  <option value="repairs">Ta'mirlash</option>
-                  <option value="tutoring">O'qitish</option>
-                  <option value="childcare">Bolalar parvarishi</option>
-                  <option value="elderly care">Keksalar yordami</option>
-                  <option value="other">Boshqa</option>
-                </select>
-                <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 pointer-events-none" size={16} />
+                  <span className="truncate">
+                    {categoryLabels[formData.category] || "Boshqa"}
+                  </span>
+                  <ChevronRight className={cn("text-slate-400 transition-transform duration-200 shrink-0", isCategoryOpen ? "rotate-90 text-slate-900" : "rotate-0")} size={15} />
+                </button>
+                
+                {isCategoryOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsCategoryOpen(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      className="absolute left-0 right-0 mt-2 bg-white rounded-[24px] border border-slate-100 shadow-[0_20px_40px_rgba(15,23,42,0.12)] p-2 z-50 max-h-[180px] overflow-y-auto scrollbar-none"
+                    >
+                      {Object.entries(categoryLabels).map(([key, label]) => {
+                        const isSelected = formData.category === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, category: key as any });
+                              setIsCategoryOpen(false);
+                            }}
+                            className={cn(
+                              "w-full px-4 py-3 rounded-[16px] text-xs font-bold text-left hover:bg-slate-50 transition-all mt-1 flex items-center justify-between",
+                              isSelected ? "bg-slate-50 text-blue-600" : "text-slate-600"
+                            )}
+                          >
+                            <span>{label}</span>
+                            {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>}
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1253,15 +1348,55 @@ const CreateRequestModal = ({ onClose, mahallas, showNotification }: { onClose: 
             <div className="space-y-2">
               <label className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Turi</label>
               <div className="relative">
-                <select 
-                  className="w-full px-8 py-5 bg-slate-50 rounded-[24px] focus:outline-none focus:ring-2 focus:ring-blue-600 appearance-none font-bold text-sm cursor-pointer border border-transparent hover:border-slate-200 transition-all"
-                  value={formData.type}
-                  onChange={(e) => setFormData({...formData, type: e.target.value as any})}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsTypeOpen(!isTypeOpen);
+                    setIsMahallaOpen(false);
+                    setIsCategoryOpen(false);
+                  }}
+                  className="w-full px-6 py-5 bg-slate-50 hover:bg-slate-100 rounded-[24px] border border-transparent hover:border-slate-200 transition-all text-left font-bold text-sm flex items-center justify-between select-none"
                 >
-                  <option value="paid">Pullik xizmat (Budjetlik)</option>
-                  <option value="voluntary">Ixtiyoriy (Savob uchun)</option>
-                </select>
-                <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 pointer-events-none" size={16} />
+                  <span className="truncate">
+                    {formData.type === 'paid' ? "Pullik (Budjetlik)" : "Ixtiyoriy (Savob)"}
+                  </span>
+                  <ChevronRight className={cn("text-slate-400 transition-transform duration-200 shrink-0", isTypeOpen ? "rotate-90 text-slate-900" : "rotate-0")} size={15} />
+                </button>
+                
+                {isTypeOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsTypeOpen(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      className="absolute left-0 right-0 mt-2 bg-white rounded-[24px] border border-slate-100 shadow-[0_20px_40px_rgba(15,23,42,0.12)] p-2 z-50 max-h-[180px] overflow-y-auto scrollbar-none"
+                    >
+                      {[
+                        { key: 'voluntary', label: 'Ixtiyoriy (Savob uchun)' },
+                        { key: 'paid', label: 'Pullik xizmat (Budjetlik)' }
+                      ].map(t => {
+                        const isSelected = formData.type === t.key;
+                        return (
+                          <button
+                            key={t.key}
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, type: t.key as any });
+                              setIsTypeOpen(false);
+                            }}
+                            className={cn(
+                              "w-full px-4 py-3 rounded-[16px] text-xs font-bold text-left hover:bg-slate-50 transition-all mt-1 flex items-center justify-between",
+                              isSelected ? "bg-slate-50 text-blue-600" : "text-slate-600"
+                            )}
+                          >
+                            <span>{t.label}</span>
+                            {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>}
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  </>
+                )}
               </div>
             </div>
             <div className="space-y-2">
@@ -1294,6 +1429,71 @@ const CreateRequestModal = ({ onClose, mahallas, showNotification }: { onClose: 
   );
 };
 
+// --- Custom Confirm Modal ---
+const ConfirmModal = ({ 
+  title, 
+  message, 
+  confirmText, 
+  cancelText = "Yopish", 
+  onConfirm, 
+  onClose,
+  isDestructive = false
+}: { 
+  title: string; 
+  message: string; 
+  confirmText: string; 
+  cancelText?: string; 
+  onConfirm: () => void; 
+  onClose: () => void;
+  isDestructive?: boolean;
+}) => {
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" />
+      
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0, y: 15 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 15 }}
+        className="relative w-full max-w-sm bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-100 p-6 md:p-8 text-center"
+      >
+        <div className={cn(
+          "w-12 h-12 rounded-full mx-auto flex items-center justify-center mb-5",
+          isDestructive ? "bg-rose-50 text-rose-500" : "bg-blue-50 text-blue-500"
+        )}>
+          {isDestructive ? <AlertTriangle size={22} /> : <HelpCircle size={22} />}
+        </div>
+        
+        <h3 className="text-slate-900 font-bold text-base mb-2">{title}</h3>
+        <p className="text-slate-500 text-xs leading-relaxed mb-6">{message}</p>
+        
+        <div className="flex gap-3 justify-center">
+          <button 
+            type="button"
+            onClick={onClose}
+            className="flex-1 px-4 py-2.5 bg-slate-50 hover:bg-slate-105 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors border border-slate-100"
+          >
+            {cancelText}
+          </button>
+          <button 
+            type="button"
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+            className={cn(
+              "flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-white transition-all active:scale-[0.98]",
+              isDestructive ? "bg-rose-600 hover:bg-rose-700 shadow-md shadow-rose-600/10" : "bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-600/10"
+            )}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 // --- Main App ---
 
 export default function App() {
@@ -1317,6 +1517,15 @@ export default function App() {
   const [mainTab, setMainTab] = useState<'home' | 'feed' | 'mahallas' | 'rewards'>('home');
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isMahallaDropdownOpen, setIsMahallaDropdownOpen] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText: string;
+    cancelText?: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+  } | null>(null);
 
   const filteredRequests = requests.filter(req => {
     const matchesSearch = req.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -1346,30 +1555,102 @@ export default function App() {
     showNotification('Guruhga qo\'shilish havolasi nusxalandi!');
   };
 
+  const handleGoogleLogin = async () => {
+    try {
+      await loginWithGoogle();
+    } catch (error: any) {
+      console.error("Login failed:", error);
+      if (error?.code === 'auth/unauthorized-domain' || error?.message?.includes('auth/unauthorized-domain')) {
+        showNotification(
+          "Ushbu Vercel domeningiz Firebase loyihangizda ruxsat etilgan domenlar (Authorized Domains) ro'yxatiga qo'shilmagan! Iltimos, Firebase Console -> Authentication -> Settings sahifasidan ushbu domenni ruxsat etilgan domenlarga qo'shing.", 
+          'error'
+        );
+      } else if (error?.code === 'auth/popup-blocked') {
+        showNotification(
+          "Brauzer kutilmaganda login oynasini blokladi (Popup blocked). Iltimos, brauzer sozlamalaridan xabarlarga va popupga ruxsat bering.", 
+          'error'
+        );
+      } else if (error?.code === 'auth/cancelled-popup-request') {
+        // user closed popup, no error needed
+      } else {
+        showNotification(
+          `Tizimga kirishda xatolik yuz berdi: ${error?.message || error}`, 
+          'error'
+        );
+      }
+    }
+  };
+
   const handleLeaveMahalla = async (mahallaId: string) => {
     if (!user) return;
-    try {
-      await firebaseService.leaveMahalla(mahallaId, user.uid);
-      showNotification('Guruhdan chiqdingiz.');
-      if (activeMahalla?.id === mahallaId) {
-        setActiveMahalla(null);
+    setConfirmModal({
+      isOpen: true,
+      title: "Guruhdan chiqish",
+      message: "Haqiqatan ham ushbu guruhni tark etmoqchimisiz?",
+      confirmText: "Chiqish",
+      cancelText: "Bekor qilish",
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          await firebaseService.leaveMahalla(mahallaId, user.uid);
+          showNotification('Guruhdan chiqdingiz.');
+          if (activeMahalla?.id === mahallaId) {
+            setActiveMahalla(null);
+          }
+        } catch (e: any) {
+          let errorMessage = 'Xatolik yuz berdi';
+          try {
+            if (e.message && e.message.startsWith('{')) {
+              const parsed = JSON.parse(e.message);
+              errorMessage = parsed.error || errorMessage;
+            } else {
+              errorMessage = e.message || errorMessage;
+            }
+          } catch (parseErr) {
+            errorMessage = e.message || errorMessage;
+          }
+          showNotification(errorMessage, 'error');
+        }
       }
-    } catch (e: any) {
-      showNotification(e.message || 'Xatolik yuz berdi', 'error');
-    }
+    });
   };
 
   const handleDeleteMahalla = async (mahallaId: string) => {
     if (!user) return;
-    try {
-      await firebaseService.deleteMahalla(mahallaId, user.uid);
-      showNotification('Guruh muvaffaqiyatli o\'chirildi.');
-      if (activeMahalla?.id === mahallaId) {
-        setActiveMahalla(null);
+    setConfirmModal({
+      isOpen: true,
+      title: "Mahallani o'chirish",
+      message: "Haqiqatan ham ushbu mahallani (guruhni) va uning barcha e'lonlarini butunlay o'chirib tashlamoqchimisiz? Ushbu amaldan so'ng ma'lumotlarni qayta tiklab bo'lmaydi!",
+      confirmText: "O'chirish",
+      cancelText: "Bekor qilish",
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          await firebaseService.deleteMahalla(mahallaId, user.uid);
+          showNotification('Guruh muvaffaqiyatli o\'chirildi.');
+          if (activeMahalla?.id === mahallaId) {
+            setActiveMahalla(null);
+          }
+        } catch (e: any) {
+          let errorMessage = 'Xatolik yuz berdi';
+          try {
+            if (e.message && e.message.startsWith('{')) {
+              const parsed = JSON.parse(e.message);
+              if (parsed.error && parsed.error.includes('Missing or insufficient permissions')) {
+                errorMessage = 'Ruxsat etilmadi: Faqat guruh yaratuvchisi ushbu guruhni o\'chira oladi.';
+              } else {
+                errorMessage = parsed.error || errorMessage;
+              }
+            } else {
+              errorMessage = e.message || errorMessage;
+            }
+          } catch (parseErr) {
+            errorMessage = e.message || errorMessage;
+          }
+          showNotification(errorMessage, 'error');
+        }
       }
-    } catch (e: any) {
-      showNotification(e.message || 'Xatolik yuz berdi', 'error');
-    }
+    });
   };
 
   const handleUpdateAnnouncement = async (mahallaId: string, announcement: string) => {
@@ -1456,7 +1737,7 @@ export default function App() {
 
   const handleRespond = async (requestId: string) => {
     if (!user) {
-      loginWithGoogle();
+      handleGoogleLogin();
       return;
     }
     try {
@@ -1535,266 +1816,237 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900 overflow-x-hidden">
-      <Navbar user={user} profile={profile} onProfileClick={() => setIsProfileModalOpen(true)} resetView={() => { setActiveMahalla(null); setMainTab('home'); }} mainTab={mainTab} setMainTab={setMainTab} />
+      <Navbar user={user} profile={profile} onProfileClick={() => setIsProfileModalOpen(true)} resetView={() => { setActiveMahalla(null); setMainTab('home'); }} mainTab={mainTab} setMainTab={setMainTab} onLogin={handleGoogleLogin} />
 
-      <main className="pt-32 pb-32 px-4 max-w-7xl mx-auto">
+      <main className="pt-28 pb-32 px-4 max-w-7xl mx-auto">
         {!user ? (
-          <div className="max-w-6xl mx-auto text-center py-20 relative">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-blue-100/30 rounded-full blur-[120px] -z-10 pointer-events-none"></div>
+          <div className="max-w-6xl mx-auto text-center py-16 relative">
+            {/* Soft Glowing Backdrops */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-sky-200/20 rounded-full blur-[120px] -z-10 pointer-events-none"></div>
+            <div className="absolute top-[40%] right-0 w-[400px] h-[400px] bg-blue-100/25 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
             
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 25 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
             >
-              <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 px-5 py-2 rounded-full text-xs font-black text-blue-600 mb-10 uppercase tracking-widest shadow-sm">
-                <ShieldCheck size={16} /> Jamoaviy O'zaro Ko'mak Tarmog'i
+              <div className="inline-flex items-center gap-2 bg-blue-50/80 border border-blue-100/60 px-4 py-1.5 rounded-full text-[11px] font-bold text-blue-700 mb-8 shadow-sm tracking-wide">
+                <ShieldCheck size={14} className="text-blue-600" /> Jamoaviy o'zaro ishonch ko'prigi
               </div>
-              <h1 className="text-7xl md:text-9xl font-display font-black tracking-[-0.04em] mb-10 leading-[0.85] text-slate-900">
-                Mahallangizda O'zaro <br /> 
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 italic">Yordam Tizimi.</span>
+              <h1 className="text-4xl md:text-6xl lg:text-7xl font-display font-extrabold tracking-tight mb-8 leading-[1.1] text-slate-900 max-w-4xl mx-auto">
+                Mahallangiz bo'ylab ishonchli <br className="hidden md:block" /> 
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 italic font-serif">ko'mak va hamkorlik</span> tarmoqlari
               </h1>
-              <p className="text-xl md:text-2xl text-slate-500 mb-16 max-w-2xl mx-auto font-medium leading-relaxed">
-                Qo'shnilar bir-birlariga yordam beradigan o'zaro ishonchli jamoat ko'prigi. Malakangizni ulashing, ehtiyojlarni qondiring va jamoaviy birdamlikni tiklang.
+              <p className="text-base md:text-lg text-slate-500 mb-12 max-w-2xl mx-auto font-medium leading-relaxed">
+                Qo'shnilar muammolarini yechishga mo'ljallangan raqamli tizim. Malakangizni ulashing, yordam bering va jamoaviy birdamlikni mustahkamlang.
               </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-32">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-5 mb-24">
                 <button 
-                  onClick={loginWithGoogle}
-                  className="group relative bg-slate-900 text-white px-10 py-5 rounded-[24px] text-lg font-black hover:bg-black transition-all flex items-center gap-3 premium-shadow overflow-hidden"
+                  onClick={handleGoogleLogin}
+                  className="group relative bg-slate-900 hover:bg-slate-950 text-white px-8 py-4 rounded-xl text-sm font-bold transition-all flex items-center gap-2.5 shadow-lg shadow-slate-950/10 hover:shadow-xl active:scale-[0.98]"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  <span className="relative z-10">Google orqali kirish</span>
-                  <ArrowRight size={20} className="relative z-10 group-hover:translate-x-1 transition-transform" />
+                  <span>Google orqali tizimga kirish</span>
+                  <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                 </button>
-                <div className="flex items-center gap-2 text-slate-400 font-extrabold text-sm uppercase tracking-widest">
-                  <div className="flex -space-x-2">
+                <div className="flex items-center gap-2 text-slate-400 font-bold text-xs uppercase tracking-wider">
+                  <div className="flex -space-x-1.5">
                     {[1,2,3].map(i => (
-                      <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center overflow-hidden">
-                        <img src={`https://i.pravatar.cc/100?img=${i+10}`} alt="" />
+                      <div key={i} className="w-7 h-7 rounded-full border border-white bg-slate-100 overflow-hidden shadow-sm">
+                        <img src={`https://i.pravatar.cc/100?img=${i+12}`} alt="" />
                       </div>
                     ))}
                   </div>
-                  <span className="ml-2">+10,000 top foydalanuvchilar</span>
+                  <span className="ml-1.5 text-slate-500">+1000 dan ziyod hamyurtlarimiz</span>
                 </div>
               </div>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-48 text-left relative z-10">
+            {/* Core Features Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-24 text-left relative z-10">
               {[
                 { 
-                  title: 'Verified Trust', 
-                  titleUz: 'Ishonchli Tizim',
-                  icon: <ShieldCheck className="text-blue-600" size={24} />, 
-                  desc: 'Every member is verified through our community trust system.',
-                  descUz: 'Har bir a\'zo jamoaviy ishonch tizimi orqali tekshiriladi.'
+                  title: 'Ishonchli va Tasdiqlangan', 
+                  titleUz: 'Yordam nazorati',
+                  icon: <ShieldCheck className="text-blue-600" size={20} />, 
+                  desc: 'Har bir profil va mahalla tizim oqsoqoli hamda jamoatchilik ishonch burchagi orqali tekshiruvdan o\'tkaziladi.'
                 },
                 { 
-                  title: 'Karma Logic', 
-                  titleUz: 'Karma Mantiqi',
-                  icon: <Zap className="text-amber-500" size={24} />, 
-                  desc: 'Karma is added only after the requester confirms help was received.',
-                  descUz: 'Karma faqat yordam qabul qilingandan so\'ng qo\'shiladi.' 
+                  title: 'Karma va Odil Tizim', 
+                  titleUz: 'Firgarlikka qarshi mantiq',
+                  icon: <Zap className="text-amber-500" size={20} />, 
+                  desc: 'XP ballari faqat e\'lon egasi yoki mahalla vakili tomonidan amaliy yordam to\'liq yakunlangach taqdim etiladi.' 
                 },
                 { 
-                  title: 'Earn & Grow', 
-                  titleUz: 'Ishlang va O\'sing',
-                  icon: <DollarSign className="text-emerald-600" size={24} />, 
-                  desc: 'Help neighbors voluntarily or list professional paid services.',
-                  descUz: 'Ixtiyoriy yordam bering yoki professional xizmatlarni pullik ko\'rsating.'
+                  title: 'Haqiqiy Ko\'mak va Mukofot', 
+                  titleUz: 'Savob va iqtisodiy foyda',
+                  icon: <DollarSign className="text-emerald-500" size={20} />, 
+                  desc: 'Ixtiyoriy (savob uchun) yordam bering yoki o\'zaro iqtisodiy foyda bera oluvchi professional xizmatlar taqdim eting.'
                 }
               ].map((feature, i) => (
                 <motion.div 
                   key={i}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 * i + 0.5 }}
-                  className="p-10 rounded-[48px] bg-white border border-slate-100 premium-shadow group hover:bg-slate-900 transition-all duration-500"
+                  transition={{ delay: 0.1 * i + 0.3 }}
+                  className="p-8 rounded-[24px] bg-white border border-slate-100 hover:border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 group"
                 >
-                  <div className="w-16 h-16 bg-slate-50 rounded-[24px] flex items-center justify-center mb-10 group-hover:bg-white/10 transition-colors">
+                  <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center mb-6 group-hover:bg-blue-50/50 transition-colors">
                     {feature.icon}
                   </div>
-                  <h3 className="text-2xl font-display font-black mb-1 uppercase tracking-tight group-hover:text-white transition-colors">{feature.title}</h3>
-                  <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-6 group-hover:text-blue-400 transition-colors">{feature.titleUz}</p>
-                  <p className="text-slate-500 text-base leading-[1.6] mb-6 group-hover:text-slate-400 transition-colors">{feature.desc}</p>
-                  <div className="h-px w-10 bg-slate-100 group-hover:bg-white/20 mb-6 transition-colors"></div>
-                  <p className="text-slate-400 text-sm italic group-hover:text-slate-500 transition-colors">{feature.descUz}</p>
+                  <h3 className="text-lg font-bold text-slate-900 mb-1 group-hover:text-blue-600 transition-colors">{feature.title}</h3>
+                  <p className="text-[9px] font-bold text-blue-600 uppercase tracking-widest mb-4">{feature.titleUz}</p>
+                  <p className="text-slate-500 text-sm leading-relaxed mb-4">{feature.desc}</p>
                 </motion.div>
               ))}
             </div>
 
-            <section className="mt-48 max-w-5xl mx-auto bg-slate-900 text-white p-16 md:p-24 rounded-[64px] text-center relative overflow-hidden premium-shadow">
-               <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/20 rounded-full blur-[100px] -mr-48 -mt-48"></div>
-               <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-600/10 rounded-full blur-[100px] -ml-48 -mb-48"></div>
+            {/* Bottom Elegant Promotion */}
+            <section className="mt-32 max-w-5xl mx-auto bg-slate-900 text-white p-12 md:p-16 rounded-[32px] text-center relative overflow-hidden shadow-2xl">
+               <div className="absolute top-0 right-0 w-80 h-80 bg-blue-600/10 rounded-full blur-[80px] -mr-32 -mt-32"></div>
+               <div className="absolute bottom-0 left-0 w-80 h-80 bg-indigo-600/10 rounded-full blur-[80px] -ml-32 -mb-32"></div>
                
                <div className="relative z-10">
-                 <h2 className="text-5xl md:text-7xl font-display font-black mb-8 uppercase tracking-tighter leading-[0.9]">Birlashgan Mahalla — <br/> <span className="text-blue-500">Kuchli Jamiyat</span></h2>
-                 <p className="text-slate-400 text-xl md:text-2xl mb-12 leading-relaxed max-w-2xl mx-auto font-medium">
-                    CivicBridge orqali odamlar bir-biriga yordam berib, ishonchli jamoaga aylanadi. Yordam bering, Karma to'plang va mahallangiz rivojiga hissa qo'shing.
+                 <h2 className="text-3xl md:text-5xl font-display font-extrabold mb-6 tracking-tight leading-none">Birlashgan Jamoa — <span className="text-blue-400 block sm:inline">Kuchli Mahalla</span></h2>
+                 <p className="text-slate-400 text-base md:text-lg mb-8 leading-relaxed max-w-2xl mx-auto font-medium">
+                    CivicBridge orqali odamlar bir-birlariga fidoyi yordam bera olishadi hamda birdamlik qadriyatini yuzaga chiqarishadi. Loyihada ishtirok eting va do'stona muhitni yarating.
                  </p>
-                 <div className="flex flex-wrap justify-center gap-4">
-                    <div className="bg-white/5 backdrop-blur-md px-8 py-4 rounded-3xl text-sm font-black border border-white/10 uppercase tracking-widest italic">
-                       "Yaxshilik qiling, u albatta qaytadi"
-                    </div>
+                 <div className="inline-flex bg-white/5 backdrop-blur-md px-6 py-2.5 rounded-full text-xs font-bold border border-white/10 uppercase tracking-wider text-slate-300 italic">
+                    "Yaxshilik qiling, u albatta zoe ketmaydi"
                  </div>
                </div>
             </section>
           </div>
         ) : (
           <div className="space-y-12">
-            {/* Mobile Tab Switcher */}
-            <div className="lg:hidden flex overflow-x-auto pb-3 gap-2 scrollbar-none border-b border-slate-100 mb-8 sticky top-[100px] bg-[#FAFAFA]/95 backdrop-blur-md z-40 pt-2 px-1">
-              {[
-                { id: 'home', label: 'Ma\'lumot', icon: <Compass size={13} /> },
-                { id: 'feed', label: 'E\'lonlar', icon: <Heart size={13} /> },
-                { id: 'mahallas', label: 'Mahallalar', icon: <Users size={13} /> },
-                { id: 'rewards', label: 'Reyting & Sovrin', icon: <Trophy size={13} /> },
-              ].map(tab => {
-                const isActive = mainTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setMainTab(tab.id as any)}
-                    className={cn(
-                      "px-4 py-2.5 rounded-[16px] text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all whitespace-nowrap active:scale-95 shrink-0 shadow-sm duration-200",
-                      isActive 
-                        ? "bg-slate-950 text-white shadow-md shadow-slate-950/20" 
-                        : "bg-white text-slate-500 border border-slate-205/60 hover:text-slate-950"
-                    )}
-                  >
-                    {tab.icon}
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+            
 
             {/* TAB 1: HOME */}
             {mainTab === 'home' && (
               <motion.div 
                 initial={{ opacity: 0, y: 15 }} 
                 animate={{ opacity: 1, y: 0 }}
-                className="space-y-10"
+                className="space-y-10 text-left"
               >
                 {/* Greeting Hero Block */}
-                <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-[48px] p-8 md:p-14 relative overflow-hidden shadow-[0_50px_100px_-30px_rgba(0,0,0,0.5)]">
-                  <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[130px] -mr-48 -mt-48"></div>
-                  <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-[100px] -ml-40 -mb-40"></div>
+                <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 text-white rounded-3xl p-8 md:p-12 relative overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)]">
+                  <div className="absolute top-0 right-0 w-[450px] h-[450px] bg-blue-600/15 rounded-full blur-[110px] -mr-32 -mt-32"></div>
+                  <div className="absolute bottom-0 left-0 w-72 h-72 bg-emerald-500/5 rounded-full blur-[90px] -ml-32 -mb-32"></div>
                   
                   <div className="relative z-10 max-w-3xl">
-                    <div className="inline-flex items-center gap-2 bg-blue-600 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-8">
-                      <Sparkles size={12} className="animate-spin" /> Siz Tizimga Qo'shildingiz
+                    <div className="inline-flex items-center gap-2 bg-blue-600/80 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider mb-6">
+                      <Sparkles size={11} className="animate-pulse" /> Tizimga muvaffaqiyatli ulandingiz
                     </div>
-                    <h1 className="text-4xl md:text-6xl font-display font-black leading-[1.05] tracking-tight uppercase mb-6">
-                      Mahallangizda O'zaro <br className="hidden md:block"/> 
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-300 italic">Yordam Ko'prigi.</span>
+                    <h1 className="text-3xl md:text-5xl font-display font-black leading-[1.1] tracking-tight mb-5">
+                      Mahallangiz bo'yicha o'zaro <br className="hidden md:block"/> 
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-sky-300 to-teal-300 italic font-serif">raqamli ko'mak tarmoqlari.</span>
                     </h1>
-                    <p className="text-slate-300 text-lg md:text-xl font-medium leading-relaxed mb-10">
-                      Assalomu alaykum, <span className="text-white font-bold">{profile?.displayName || user.displayName}</span>! CivicBridge — qo'shnilar bir-birlariga xayrixohlik bilan ko'mak beradigan, ijtimoiy birdamlikni tiklaydigan ishonchli tarmoqdir.
+                    <p className="text-slate-300 text-sm md:text-base font-medium leading-relaxed mb-8 max-w-2xl">
+                      Xush kelibsiz, <span className="text-white font-semibold">{profile?.displayName || user.displayName}</span>! CivicBridge orqali mahalladoshlaringiz bilan faol bog'lanishingiz, o'zaro yordam ulashishingiz hamda jamoatchilik aloqalarini mustahkamlay olasiz.
                     </p>
-                    <div className="flex flex-wrap gap-4">
+                    <div className="flex flex-wrap gap-3.5">
                       <button 
                         onClick={() => setMainTab('feed')}
-                        className="bg-white text-slate-950 px-8 py-4.5 rounded-[22px] text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-all flex items-center gap-2 shadow-xl"
+                        className="bg-white hover:bg-slate-100 text-slate-950 px-6 py-3 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-md active:scale-98"
                       >
-                        Yordam berishni boshlash <Heart size={14} className="text-rose-500 fill-rose-500" />
+                        Vazifalarni ko'rish <Heart size={13} className="text-rose-500 fill-rose-500" />
                       </button>
                       <button 
                         onClick={() => setIsModalOpen(true)}
-                        className="bg-white/10 hover:bg-white/20 text-white border border-white/10 px-8 py-4.5 rounded-[22px] text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                        className="bg-white/10 hover:bg-white/15 text-white border border-white/10 px-6 py-3 rounded-xl text-xs font-bold transition-all flex items-center gap-2 active:scale-98"
                       >
-                        E'lon joylashtirish <Plus size={14} />
+                        Yangi e'lon loyihalash <Plus size={13} />
                       </button>
                     </div>
                   </div>
                 </div>
 
                 {/* How it works grid */}
-                <div className="space-y-6">
-                  <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 ml-1">
-                    🎯 Tizim Qanday Ishlaydi?
+                <div className="space-y-5">
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+                    <span>🎯</span> Tizim qanday amallar bilan ishlaydi?
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                     {[
                       {
                         step: '01',
-                        title: 'E\'lon Joylash',
-                        desc: 'Bozorlik, bolalar parvarishi, ta\'mirlash yoki o\'qitish kabi yumushlar uchun bepul yoki pullik e\'lon qo\'yasiz.'
+                        title: 'E\'lon joylashtirish',
+                        desc: 'Bozorlik, transport, ta\'mirlash, bolalar parvarishi yoki ta\'lim kabi ehtiyojlar uchun bepul yoki ruxsatli pullik e\'lon berasiz.'
                       },
                       {
                         step: '02',
-                        title: 'Yordam Qo\'lini Cho\'zish',
-                        desc: 'E\'lonlar ro\'yxatidan birini tanlab, yordam berishga rozilik bildirasiz va shaxsiy chatda bog\'lanasiz.'
+                        title: 'Yordamni qabul qilish',
+                        desc: 'Istagan odam ro\'yxatdan birini tanlab, yordam berish majburiyatini oladi va shaxsiy xavfsiz chatda suhbatlashadi.'
                       },
                       {
                         step: '03',
-                        title: 'Tizimli Tasdiqlash',
-                        desc: 'Yordam olingach, e\'lon egasi uni "Muvaffaqiyatli yakunlandi" deb tasdiqlaydi. Mana shu bosqichda ball olasiz.'
+                        title: 'Yakunlash va tasdiqlash',
+                        desc: 'Yordam berilgach, e\'lon beruvchi tizimda "Yordam oldim" tugmasini bosib vazifani yakunlaydi. Sizga amaliy ball qo\'shiladi.'
                       },
                       {
                         step: '04',
-                        title: '5 MLN SO\'M Mukofot',
-                        desc: 'Tizimda halol mehnat bilan 1,000 Karma XP yiqqan har bir foydalanuvchimizga 5 mln so\'m pul mukofotini taqdim etamiz.'
+                        title: '5,000,000 so\'m mukofot',
+                        desc: 'Ishonch asosida 1,000 Karma XP to\'plagan har bir foydalanuvchimizga rag\'batlantiruvchi 5 mln so\'m pul mukofotini taqdim etamiz.'
                       }
                     ].map((step, i) => (
-                      <div key={i} className="bg-white p-8 rounded-[36px] border border-slate-100 shadow-sm relative overflow-hidden group hover:-translate-y-1 transition duration-300">
-                        <span className="absolute right-6 top-6 text-5xl font-display font-black text-slate-100 group-hover:text-blue-50 transition-colors leading-none">{step.step}</span>
-                        <h3 className="text-lg font-black uppercase tracking-tight text-slate-900 mb-3 mt-4 relative z-10">{step.title}</h3>
-                        <p className="text-slate-500 text-sm leading-relaxed relative z-10">{step.desc}</p>
+                      <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group hover:-translate-y-0.5 transition duration-300">
+                        <span className="absolute right-4 top-4 text-3xl font-display font-extrabold text-slate-100 group-hover:text-blue-50 transition-colors leading-none">{step.step}</span>
+                        <h3 className="text-sm font-bold text-slate-900 mb-2 mt-2 relative z-10">{step.title}</h3>
+                        <p className="text-slate-500 text-xs leading-relaxed relative z-10">{step.desc}</p>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Anti-cheat and trust information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="bg-slate-50 border border-slate-100 rounded-[40px] p-8 md:p-10 text-left">
-                    <div className="flex items-center gap-3 text-blue-650 mb-6 font-black uppercase tracking-wide">
-                      <ShieldCheck size={28} />
-                      <h3 className="text-lg">Halollik va Ishonch Kafolati</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="bg-white border border-slate-100 rounded-2xl p-6 md:p-8 text-left shadow-sm">
+                    <div className="flex items-center gap-2.5 text-blue-700 mb-5 font-bold">
+                      <ShieldCheck size={20} />
+                      <h3 className="text-base font-bold">Halollik va ishonch kafolati</h3>
                     </div>
-                    <p className="text-slate-600 text-base leading-relaxed mb-6 font-medium">
-                      CivicBridge — bu jamiyat ishonchini tiklash loyihasidir. Ayrim shaxslar do'stlari bilan kelishib, soxta yordamlar orqali ball to'plashiga yo'l qo'ymaslik uchun quyidagi choralar joriy etilgan:
+                    <p className="text-slate-600 text-sm leading-relaxed mb-5 font-medium">
+                      CivicBridge — bu jamiyat ishonchini tiklash milliy loyihasidir. Ayrim shaxslar soxta yorliqlar bilan ball to'plashiga yo'l qo'ymaslik maqsadida quyidagi choralar joriy etilgan:
                     </p>
-                    <ul className="space-y-4 text-sm text-slate-500 font-medium">
-                      <li className="flex gap-3">
-                        <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-md flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold">1</span>
-                        <span><strong>Bir kunlik cheklov:</strong> Kuniga maksimal 50 XP (5 ta yordam) ball yig'ish mumkin xolos.</span>
+                    <ul className="space-y-3.5 text-xs text-slate-500 font-medium">
+                      <li className="flex gap-2.5">
+                        <span className="w-4 h-4 bg-blue-50 text-blue-600 rounded flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-extrabold">1</span>
+                        <span><strong>Bir kunlik limit:</strong> Kuniga maksimal 50 XP (5 ta amaliy yordam) ball yig'ishga ruxsat etiladi xolos.</span>
                       </li>
-                      <li className="flex gap-3">
-                        <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-md flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold">2</span>
-                        <span><strong>O'zaro hamkorlik limiti:</strong> Bitta inson sizga hayotingizda max 3 marta ko'mak ballini tasdiqlay oladi.</span>
+                      <li className="flex gap-2.5">
+                        <span className="w-4 h-4 bg-blue-50 text-blue-600 rounded flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-extrabold">2</span>
+                        <span><strong>O'zaro hamkorlik cheklovi:</strong> Bitta inson hayotingizda sizga ko'pi bilan 3 marta ko'mak ballini tasdiqlay oladi.</span>
                       </li>
-                      <li className="flex gap-3">
-                        <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-md flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold">3</span>
-                        <span><strong>Komissiya Auditi:</strong> 500 XP va 1000 XP darajalarida mahalla oqsoqollari yordam tarixi, chatlar hamda xaritalarni qat'iy tekshiradi.</span>
+                      <li className="flex gap-2.5">
+                        <span className="w-4 h-4 bg-blue-50 text-blue-600 rounded flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-extrabold">3</span>
+                        <span><strong>Komissiya tekshiruvi:</strong> 500 ball va 1000 ball marralarida mahalla faollari yordam tarixi, sayohat izlari va chatlarni to'liq auditdan o'tkazadi.</span>
                       </li>
                     </ul>
                   </div>
 
                   {/* Quest Highlight Card */}
-                  <div className="bg-[#020617] text-white rounded-[40px] p-8 md:p-10 relative overflow-hidden flex flex-col justify-between shadow-2xl">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-[80px]"></div>
+                  <div className="bg-slate-900 border border-slate-800 text-white rounded-2xl p-6 md:p-8 relative overflow-hidden flex flex-col justify-between shadow-xl">
+                    <div className="absolute top-0 right-0 w-52 h-52 bg-indigo-505/15 rounded-full blur-[60px]"></div>
                     <div>
-                      <div className="flex items-center gap-2 text-yellow-500 mb-4">
-                        <Trophy size={20} />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Oliy Maqsad Quest</span>
+                      <div className="flex items-center gap-1.5 text-amber-400 mb-3">
+                        <Trophy size={16} />
+                        <span className="text-[9px] font-extrabold uppercase tracking-widest">Oliy rag'bat loyihasi</span>
                       </div>
-                      <h3 className="text-3xl md:text-4xl font-display font-black leading-none uppercase tracking-tight mb-4">
-                        5,000,000 SO'M <br />
-                        <span className="text-indigo-400">Halol Mehnat Mukofoti</span>
+                      <h3 className="text-2xl font-display font-extrabold leading-none tracking-tight mb-3">
+                        5,000,000 so'm <br />
+                        <span className="text-indigo-300 text-lg">Xayru saxovat mukofoti</span>
                       </h3>
-                      <p className="text-slate-400 text-sm leading-relaxed mb-6">
-                        Ushbu aksiya mahallarimizni raqamlashtirish, birdamlik ruhini qaytarish hamda haqiqiy jamoat qahramonlarini munosib taqdirlash maqsadida tashkil etilgan. Siz to'playdigan har bir XP ball ortida haqiqiy insonlarning quvonchi joy olgan bo'ladi!
+                      <p className="text-slate-400 text-xs leading-relaxed mb-6">
+                        Ushbu aksiya mahallarimizni raqamlashtirish, birdamlik muhitini qaytarish hamda haqiqiy jamoat qahramonlarini munosib rag'batlantirish maqsadida tuzildi. Siz to'playdigan har bir XP ball ortida chinakam jamoaviy sa'y-harakatlar turadi.
                       </p>
                     </div>
-                    <div className="pt-6 border-t border-white/5 flex items-center justify-between">
+                    <div className="pt-4 border-t border-white/5 flex items-center justify-between">
                       <div>
-                        <span className="text-[10px] text-slate-500 font-bold uppercase block tracking-wider mb-1">Sizning balingiz</span>
-                        <span className="text-2xl font-black text-white">{profile?.karma || 0} XP</span>
+                        <span className="text-[9px] text-slate-500 font-bold uppercase block tracking-wider mb-0.5">Sizning balingiz</span>
+                        <span className="text-lg font-black text-white">{profile?.karma || 0} XP</span>
                       </div>
                       <button 
                         onClick={() => setMainTab('rewards')}
-                        className="bg-indigo-600 hover:bg-indigo-505 text-white px-6 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all shadow-lg shadow-indigo-600/25"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shadow-md active:scale-95"
                       >
                         Natijani tekshirish
                       </button>
@@ -1807,47 +2059,47 @@ export default function App() {
             {/* TAB 2: FEED */}
             {mainTab === 'feed' && (
               <motion.div 
-                initial={{ opacity: 0, scale: 0.98 }} 
+                initial={{ opacity: 0, scale: 0.99 }} 
                 animate={{ opacity: 1, scale: 1 }}
-                className="space-y-8"
+                className="space-y-6"
               >
                 {/* Search & Feed Subtabs Header */}
-                <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white border border-slate-100 rounded-[35px] p-6 shadow-sm">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-5 bg-white border border-slate-200/50 rounded-2xl p-5 shadow-sm text-left">
                   <div>
-                    <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 flex items-center gap-2">
-                      <Heart size={20} className="text-rose-500" /> Yordam Tarmog'i
+                    <h2 className="text-xl font-bold tracking-tight text-slate-930 flex items-center gap-2">
+                      <Heart size={18} className="text-rose-500" /> O'zaro yordam tarmog'i
                     </h2>
-                    <p className="text-xs text-slate-400 mt-1 font-medium">Mahallangizdagi faol e'lonlar, professional yoki ixtiyoriy ko'maklarni kuzatib boring.</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Mahallangizdagi faol e'lonlar, professional yoki ixtiyoriy ko'maklarni kuzatib boring.</p>
                   </div>
 
-                  <div className="flex bg-slate-100 p-1.5 rounded-[22px] w-full md:w-auto shrink-0">
+                  <div className="flex bg-slate-100 p-1 rounded-xl w-full md:w-auto shrink-0">
                      <button 
                         onClick={() => setActiveTab('browse')}
-                        className={cn("px-6 py-3.5 rounded-[16px] text-xs font-black transition-all uppercase tracking-[0.15em] whitespace-nowrap", activeTab === 'browse' ? "bg-white text-slate-900 shadow-md" : "text-slate-400 hover:text-slate-600")}
+                        className={cn("px-5 py-2.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider whitespace-nowrap", activeTab === 'browse' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}
                      >
                        Yordam Keraklar (Browse)
                      </button>
                      <button 
                         onClick={() => setActiveTab('my-activity')}
-                        className={cn("px-6 py-3.5 rounded-[16px] text-xs font-black transition-all uppercase tracking-[0.15em] whitespace-nowrap", activeTab === 'my-activity' ? "bg-white text-slate-900 shadow-md" : "text-slate-400 hover:text-slate-600")}
+                        className={cn("px-5 py-2.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider whitespace-nowrap", activeTab === 'my-activity' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}
                      >
                        Faol Vazifalarim (My Activity)
                      </button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 text-left">
                   {/* Search and Filters side column */}
-                  <div className="lg:col-span-1 space-y-6">
-                    <div className="p-6 bg-white border border-slate-100 rounded-[36px] shadow-sm space-y-5">
+                  <div className="lg:col-span-1 space-y-5">
+                    <div className="p-5 bg-white border border-slate-200/60 rounded-2xl shadow-sm space-y-4">
                       <div>
-                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-2">Qidiruv</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Izlash</span>
                         <div className="relative">
-                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
                           <input 
                             type="text" 
                             placeholder="Masalan: bozorlik..." 
-                            className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-[20px] focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all text-xs font-bold placeholder:text-slate-300"
+                            className="w-full pl-10 pr-3-5 py-2.5 bg-slate-50 border border-slate-200/50 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all text-xs font-bold placeholder:text-slate-300"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                           />
@@ -1857,22 +2109,22 @@ export default function App() {
                       <div className="h-px bg-slate-100"></div>
 
                       <div>
-                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-3">Tizimdagi jamoa</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Tizimdagi jamoa</span>
                         <div className="relative">
                           <button
                             type="button"
                             onClick={() => setIsMahallaDropdownOpen(!isMahallaDropdownOpen)}
-                            className="w-full px-5 py-4 bg-slate-50 border border-slate-100/80 rounded-[22px] text-xs font-bold text-slate-800 flex items-center justify-between hover:bg-slate-100 hover:border-slate-200 transition-all active:scale-[0.99] select-none"
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200/50 rounded-xl text-xs font-bold text-slate-800 flex items-center justify-between hover:bg-slate-100 hover:border-slate-200 transition-all active:scale-[0.99] select-none"
                           >
                             <span className="truncate flex items-center gap-2">
                               {activeMahalla ? (
                                 <>
-                                  <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse"></span>
                                   <span>{activeMahalla.name}</span>
                                 </>
                               ) : (
                                 <>
-                                  <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
                                   <span>Barcha Mahallalar (Global)</span>
                                 </>
                               )}
@@ -1882,7 +2134,7 @@ export default function App() {
                                 "text-slate-400 transition-transform duration-200 shrink-0", 
                                 isMahallaDropdownOpen ? "rotate-90 text-slate-900" : "rotate-0"
                               )} 
-                              size={15} 
+                              size={14} 
                             />
                           </button>
 
@@ -1893,10 +2145,10 @@ export default function App() {
                                 onClick={() => setIsMahallaDropdownOpen(false)} 
                               />
                               <motion.div
-                                initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                                initial={{ opacity: 0, y: -5, scale: 0.98 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                                transition={{ duration: 0.15, ease: "easeOut" }}
-                                className="absolute left-0 right-0 mt-2 bg-white rounded-[24px] border border-slate-100 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.12)] p-2.5 z-50 max-h-[240px] overflow-y-auto scrollbar-none"
+                                transition={{ duration: 0.12, ease: "easeOut" }}
+                                className="absolute left-0 right-0 mt-1.5 bg-white rounded-xl border border-slate-100 shadow-xl p-2 z-50 max-h-[220px] overflow-y-auto scrollbar-none"
                               >
                                 <button
                                   type="button"
@@ -1905,12 +2157,12 @@ export default function App() {
                                     setIsMahallaDropdownOpen(false);
                                   }}
                                   className={cn(
-                                    "w-full px-4 py-3 rounded-[16px] text-xs font-bold text-left transition-all flex items-center justify-between hover:bg-slate-50",
+                                    "w-full px-3 py-2 rounded-lg text-xs font-bold text-left transition-all flex items-center justify-between hover:bg-slate-50",
                                     !activeMahalla ? "bg-slate-50 text-blue-600" : "text-slate-600"
                                   )}
                                 >
                                   <span>Barcha Mahallalar (Global)</span>
-                                  {!activeMahalla && <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>}
+                                  {!activeMahalla && <span className="w-1 h-1 rounded-full bg-blue-600"></span>}
                                 </button>
 
                                 {mahallas.map((m) => {
@@ -1946,7 +2198,7 @@ export default function App() {
                     {activeTab === 'browse' ? (
                       <div className="space-y-6">
                         {/* Categories List Horizontal slider */}
-                        <div className="overflow-x-auto pb-3 pt-1 -mx-4 px-4 scrollbar-none flex items-center gap-2 select-none w-full">
+                        <div className="overflow-x-auto pb-3 pt-1 -mx-4 px-4 scrollbar-none flex items-center gap-2 select-none w-full touch-pan-x scroll-smooth snap-x">
                           {[
                             { name: 'Barcha turlar', key: 'all', icon: <Globe size={13} />, bg: 'bg-slate-950 border-slate-950 text-white shadow-lg shadow-slate-950/10', inactive: 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50 hover:text-slate-950' },
                             { name: 'Yumushlar', key: 'errands', icon: <ShoppingBag size={13} />, bg: 'bg-amber-500 border-amber-500 text-white shadow-md shadow-amber-500/15', inactive: 'bg-white text-slate-500 border-slate-100 hover:bg-amber-50/50 hover:text-amber-600' },
@@ -1954,7 +2206,7 @@ export default function App() {
                             { name: 'Dars tayyorlash', key: 'tutoring', icon: <BookOpen size={13} />, bg: 'bg-indigo-500 border-indigo-500 text-white shadow-md shadow-indigo-500/15', inactive: 'bg-white text-slate-500 border-slate-100 hover:bg-indigo-50/50 hover:text-indigo-600' },
                             { name: 'Bolalar', key: 'childcare', icon: <Baby size={13} />, bg: 'bg-pink-500 border-pink-500 text-white shadow-md shadow-pink-500/15', inactive: 'bg-white text-slate-500 border-slate-100 hover:bg-pink-50/50 hover:text-pink-600' },
                             { name: 'Qariyalar', key: 'elderly care', icon: <Heart size={13} />, bg: 'bg-rose-500 border-rose-500 text-white shadow-md shadow-rose-500/15', inactive: 'bg-white text-slate-500 border-slate-100 hover:bg-rose-50/50 hover:text-rose-600' },
-                            { name: 'Boshqa', key: 'other', icon: <Sparkles size={13} />, bg: 'bg-slate-700 border-slate-700 text-white shadow-md shadow-slate-700/15', inactive: 'bg-white text-slate-400 border-slate-100 hover:bg-slate-55' },
+                            { name: 'Boshqa', key: 'other', icon: <Sparkles size={13} />, bg: 'bg-slate-700 border-slate-700 text-white shadow-md shadow-slate-700/15', inactive: 'bg-white text-slate-400 border-slate-100 hover:bg-slate-100/60 hover:text-slate-900' },
                           ].map(cat => {
                             const isCatActive = activeCategory === cat.name;
                             return (
@@ -2327,9 +2579,45 @@ export default function App() {
         )}
       </main>
 
+      {/* Mobile Tab Switcher - Fixed Floating Bottom Dock */}
+      {user && (
+        <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[360px] bg-slate-900/90 backdrop-blur-xl border border-white/10 p-2 rounded-[24px] shadow-[0_24px_50px_rgba(0,0,0,0.3)] z-[100] flex justify-between items-center select-none">
+          {[
+            { id: 'home', label: 'Ma\'lumot', icon: <Compass size={18} /> },
+            { id: 'feed', label: 'E\'lonlar', icon: <Heart size={18} /> },
+            { id: 'mahallas', label: 'Mahallalar', icon: <Users size={18} /> },
+            { id: 'rewards', label: 'Reyting', icon: <Trophy size={18} /> },
+          ].map(tab => {
+            const isActive = mainTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setMainTab(tab.id as any)}
+                className={cn(
+                  "flex-1 flex flex-col items-center justify-center py-2 rounded-[18px] transition-all relative z-10",
+                  isActive 
+                    ? "text-blue-400 font-extrabold scale-105" 
+                    : "text-slate-400 hover:text-white"
+                )}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="activeMobileTabPill"
+                    className="absolute inset-0 bg-white/10 rounded-[16px] -z-10"
+                    transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                  />
+                )}
+                {tab.icon}
+                <span className="text-[8.5px] font-bold uppercase tracking-wider mt-1">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Action Buttons */}
       {user && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50">
+        <div className="fixed sm:bottom-10 bottom-24 left-1/2 -translate-x-1/2 z-50">
           <motion.button 
             whileHover={{ scale: 1.02, y: -2 }}
             whileTap={{ scale: 0.98 }}
@@ -2362,6 +2650,18 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+
+      {confirmModal && (
+        <ConfirmModal 
+          title={confirmModal.title}
+          message={confirmModal.message}
+          confirmText={confirmModal.confirmText}
+          cancelText={confirmModal.cancelText}
+          isDestructive={confirmModal.isDestructive}
+          onConfirm={confirmModal.onConfirm}
+          onClose={() => setConfirmModal(null)}
+        />
+      )}
 
       <AnimatePresence>
         {notification && (
