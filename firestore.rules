@@ -157,5 +157,40 @@ service cloud.firestore {
       ) && incoming().senderId == request.auth.uid
         && incoming().createdAt == request.time;
     }
+
+    // --- Proposals (Forum) ---
+    match /proposals/{proposalId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && isValidProposal(incoming())
+                    && incoming().creatorId == request.auth.uid
+                    && incoming().createdAt == request.time
+                    && incoming().voteCount == 0
+                    && incoming().votes.size() == 0;
+      allow update: if isSignedIn() && isValidProposal(incoming()) && (
+        // Creator can edit elements of the proposal
+        (isOwner(existing().creatorId) && incoming().creatorId == existing().creatorId && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'category', 'status']))
+        ||
+        // Anyone can vote/unvote (voting/unvoting only affects 'votes' array and 'voteCount' number)
+        (incoming().diff(existing()).affectedKeys().hasOnly(['votes', 'voteCount']) && 
+          (
+            (incoming().votes.size() == existing().votes.size() + 1 && request.auth.uid in incoming().votes && incoming().voteCount == existing().voteCount + 1) ||
+            (incoming().votes.size() == existing().votes.size() - 1 && !(request.auth.uid in incoming().votes) && request.auth.uid in existing().votes && incoming().voteCount == existing().voteCount - 1)
+          )
+        )
+      );
+      allow delete: if isSignedIn() && isOwner(resource.data.creatorId);
+    }
+
+    function isValidProposal(data) {
+      return data.title is string && data.title.size() >= 5 && data.title.size() <= 200
+             && data.description is string && data.description.size() <= 2000
+             && data.creatorId is string
+             && data.creatorName is string && data.creatorName.size() <= 100
+             && data.category in ['ecology', 'infrastructure', 'events', 'charity', 'other']
+             && data.status in ['proposal', 'discussion', 'approved', 'completed']
+             && data.votes is list && data.votes.size() <= 1000
+             && data.voteCount is number;
+    }
   }
 }

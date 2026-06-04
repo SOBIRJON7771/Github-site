@@ -62,6 +62,20 @@ export interface Message {
   createdAt: any;
 }
 
+export interface Proposal {
+  id: string;
+  title: string;
+  description: string;
+  creatorId: string;
+  creatorName: string;
+  mahallaId: string | null;
+  category: 'ecology' | 'infrastructure' | 'events' | 'charity' | 'other';
+  status: 'proposal' | 'discussion' | 'approved' | 'completed';
+  votes: string[];
+  voteCount: number;
+  createdAt: any;
+}
+
 const USERS_COL = 'users';
 const REQUESTS_COL = 'requests';
 const MAHALLAS_COL = 'mahallas';
@@ -470,6 +484,74 @@ export const firebaseService = {
       });
     } catch (e) {
       handleFirestoreError(e, OperationType.CREATE, `${REQUESTS_COL}/${requestId}/messages`);
+    }
+  },
+
+  // Proposals (Forum)
+  async createProposal(title: string, description: string, creatorId: string, creatorName: string, category: 'ecology' | 'infrastructure' | 'events' | 'charity' | 'other', mahallaId: string | null) {
+    try {
+      const colRef = collection(db, 'proposals');
+      await addDoc(colRef, {
+        title,
+        description,
+        creatorId,
+        creatorName,
+        category,
+        mahallaId,
+        status: 'proposal',
+        votes: [],
+        voteCount: 0,
+        createdAt: serverTimestamp()
+      });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, 'proposals');
+    }
+  },
+
+  subscribeToAllProposals(callback: (proposals: Proposal[]) => void) {
+    const q = query(collection(db, 'proposals'));
+    return onSnapshot(q, (snap) => {
+      const proposals = snap.docs.map(d => ({ id: d.id, ...d.data() } as Proposal));
+      callback(proposals);
+    }, (e) => handleFirestoreError(e, OperationType.LIST, 'proposals'));
+  },
+
+  async voteProposal(proposalId: string, userId: string, hasVoted: boolean) {
+    try {
+      const docRef = doc(db, 'proposals', proposalId);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        let votes = data.votes || [];
+        if (hasVoted) {
+          if (!votes.includes(userId)) {
+            votes = [...votes, userId];
+          }
+        } else {
+          votes = votes.filter((v: string) => v !== userId);
+        }
+        await updateDoc(docRef, {
+          votes,
+          voteCount: votes.length
+        });
+      }
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `proposals/${proposalId}`);
+    }
+  },
+
+  async deleteProposal(proposalId: string, userId: string) {
+    try {
+      const docRef = doc(db, 'proposals', proposalId);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        if (snap.data().creatorId !== userId) {
+          throw new Error('Faqat muallif o\'chira oladi.');
+        }
+        await deleteDoc(docRef);
+      }
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `proposals/${proposalId}`);
     }
   }
 };

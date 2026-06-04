@@ -31,10 +31,10 @@ app.post("/api/ai/suggest-request", async (req, res) => {
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `You are a helpful community assistant for a neighbor-to-neighbor help platform. 
+      model: "gemini-3.5-flash",
+      contents: `You are a helpful community assistant for a neighbor-to-neighbor help platform (CivicBridge). 
       The user wants to post a help request. Improve their title and description to be more appealing, clear, and professional, while keeping the core need intact.
-      Return the response in JSON format.
+      Return the response in JSON format in the language written by the user (normally Uzbek).
       
       Original Title: ${title}
       Original Description: ${description}`,
@@ -57,6 +57,44 @@ app.post("/api/ai/suggest-request", async (req, res) => {
   } catch (error) {
     console.error("Gemini AI Error:", error);
     res.status(500).json({ error: "Failed to generate AI suggestion" });
+  }
+});
+
+// AI Mahalla Chat Assistant API
+app.post("/api/ai/chat", async (req, res) => {
+  const { messages } = req.body;
+
+  if (!messages || !Array.isArray(messages)) {
+    return res.status(400).json({ error: "Messages array are required" });
+  }
+
+  try {
+    // Format messages for @google/genai Content schema
+    const contents = messages.map((msg: any) => ({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.text || msg.content || '' }]
+    }));
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents,
+      config: {
+        systemInstruction: `Siz CivicBridge (Raqamli Ko'mak) mahallasidagi eng aqlli va g'amxo'r raqamli AI maslahatshisiz (chat-bot).
+        Maqsadingiz: Mahalladoshlar o'rtasida o'zaro ishonch va do'stona ko'mak tarmoqlarini kuchaytirish, tushunmovchiliklarni yumshatish.
+        Vazifalaringiz:
+        1. Jamoat yoki qo'ni-qo'shni munosabatlari, kelishmovchiliklar haqida aqlli, madaniyatli maslahatlar berish (O'zbekona qadriyatlar ruhida).
+        2. Platforma imkoniyatlari (Karma ballari, vazifalar, 5 mln mukofot) haqida tushuntirish.
+        3. Foydalanuvchi jamoat taklifi yozayotganda chiroyli va ta'sirli tavsif tayyorlashga yordam berish.
+        4. O'zaro yordam e'lonlari uchun to'g'ri nom tanlash bo'yicha namunalar tuzish.
+        
+        Suhbat qoidasi: Har doim juda chiroyli, muloyim va o'zbek tilida (agar foydalanuvchi rus / ingliz tillarini ishlatmasa) javob qaytaring. Javobni qisqa, tushunarli va punktlar bilan vizual ajoyib tarzda boyiting.`
+      }
+    });
+
+    res.json({ reply: response.text });
+  } catch (error) {
+    console.error("Gemini Chat API Error:", error);
+    res.status(500).json({ error: "Failed to generate AI response" });
   }
 });
 

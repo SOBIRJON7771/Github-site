@@ -79,6 +79,25 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["text", "senderId", "createdAt"]
+    },
+    "Proposal": {
+      "title": "Forum Proposal",
+      "description": "A community idea or project proposed and voted on by mahalla members.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "creatorName": { "type": "string" },
+        "mahallaId": { "type": "string", "description": "Optional ID of the Mahalla this proposal belongs to." },
+        "category": { "type": "string", "enum": ["ecology", "infrastructure", "events", "charity", "other"] },
+        "status": { "type": "string", "enum": ["proposal", "discussion", "approved", "completed"] },
+        "votes": { "type": "array", "description": "Array of user UIDs who voted." },
+        "voteCount": { "type": "number", "description": "Total vote count." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "description", "creatorId", "creatorName", "category", "status", "votes", "voteCount", "createdAt"]
     }
   },
   "firestore": {
@@ -101,6 +120,10 @@
     "events": {
         "schema": "Event",
         "description": "Historical log of community activities."
+    },
+    "proposals": {
+        "schema": "Proposal",
+        "description": "Community ideas, proposals, and discussions voted on by citizens."
     }
   }
 }

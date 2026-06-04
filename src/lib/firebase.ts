@@ -67,8 +67,8 @@ export const loginWithGoogle = async () => {
   } catch (error: any) {
     if (error.code === 'auth/popup-blocked') {
       console.warn('Popup blocked. Please allow popups for this site.');
-    } else if (error.code === 'auth/cancelled-popup-request') {
-      console.warn('Popup login was cancelled.');
+    } else if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
+      console.warn('Popup login was cancelled or closed by user.');
     } else {
       console.error('Auth Error:', error);
     }

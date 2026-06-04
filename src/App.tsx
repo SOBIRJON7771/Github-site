@@ -45,7 +45,7 @@ import {
 } from 'lucide-react';
 import { auth, loginWithGoogle, logout } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { firebaseService, UserProfile, HelpRequest, Message, Mahalla } from './services/firebaseService';
+import { firebaseService, UserProfile, HelpRequest, Message, Mahalla, Proposal } from './services/firebaseService';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { formatDistanceToNow } from 'date-fns';
@@ -77,8 +77,8 @@ const Navbar = ({
   profile: UserProfile | null; 
   onProfileClick: () => void; 
   resetView: () => void; 
-  mainTab: 'home' | 'feed' | 'mahallas' | 'rewards'; 
-  setMainTab: (tab: 'home' | 'feed' | 'mahallas' | 'rewards') => void; 
+  mainTab: 'home' | 'feed' | 'forum' | 'ai' | 'mahallas' | 'rewards'; 
+  setMainTab: (tab: 'home' | 'feed' | 'forum' | 'ai' | 'mahallas' | 'rewards') => void; 
   onLogin?: () => void;
 }) => {
   return (
@@ -103,8 +103,10 @@ const Navbar = ({
             {[
               { id: 'home', label: 'Tushuntirish', icon: <Compass size={13} /> },
               { id: 'feed', label: 'Yordam e\'lonlari', icon: <Heart size={13} /> },
+              { id: 'forum', label: 'Munozaralar / Forum', icon: <MessageSquare size={13} /> },
               { id: 'mahallas', label: 'Mahallalar', icon: <Users size={13} /> },
               { id: 'rewards', label: 'Reyting & Sovrin', icon: <Trophy size={13} /> },
+              { id: 'ai', label: 'AI Ko\'makchi', icon: <Sparkles size={13} className="text-amber-500 animate-pulse" /> },
             ].map(tab => {
               const isActive = mainTab === tab.id;
               return (
@@ -1514,7 +1516,7 @@ export default function App() {
   const [viewingProfile, setViewingProfile] = useState<UserProfile | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<'browse' | 'my-activity'>('browse');
-  const [mainTab, setMainTab] = useState<'home' | 'feed' | 'mahallas' | 'rewards'>('home');
+  const [mainTab, setMainTab] = useState<'home' | 'feed' | 'forum' | 'ai' | 'mahallas' | 'rewards'>('home');
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isMahallaDropdownOpen, setIsMahallaDropdownOpen] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{
@@ -1526,6 +1528,26 @@ export default function App() {
     onConfirm: () => void;
     isDestructive?: boolean;
   } | null>(null);
+
+  // New features states
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [isCreateProposalModalOpen, setIsCreateProposalModalOpen] = useState(false);
+  const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+  const [chatbotMessages, setChatbotMessages] = useState<{ role: 'user' | 'assistant'; text: string }[]>([
+    { role: 'assistant', text: 'Sizga salom! Men "CivicBridge AI Ko\'makdosh"man. Mahalla hayotini obodonlashtirish bo\'yicha yozmoqchi bo\'lgan taklifingiz bormi? Yoki qo\'shnilar bilan biror tushunmovchilikni hal qilishda maslahat kerakmi? Savolingizni bering, sizga jon-dildan ko\'maklashaman! 🤝' }
+  ]);
+  const [isChatbotLoading, setIsChatbotLoading] = useState(false);
+  const [chatbotInput, setChatbotInput] = useState('');
+  const [proposalSearchQuery, setProposalSearchQuery] = useState('');
+  const [proposalCategory, setProposalCategory] = useState('Barcha turlar');
+  const [mapViewActive, setMapViewActive] = useState(false);
+  const [activeMapPin, setActiveMapPin] = useState<HelpRequest | null>(null);
+
+  // Proposal Creation states
+  const [isCreatingInline, setIsCreatingInline] = useState(false);
+  const [newPropTitle, setNewPropTitle] = useState('');
+  const [newPropDesc, setNewPropDesc] = useState('');
+  const [newPropCat, setNewPropCat] = useState<'ecology' | 'infrastructure' | 'events' | 'charity' | 'other'>('infrastructure');
 
   const filteredRequests = requests.filter(req => {
     const matchesSearch = req.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -1570,8 +1592,9 @@ export default function App() {
           "Brauzer kutilmaganda login oynasini blokladi (Popup blocked). Iltimos, brauzer sozlamalaridan xabarlarga va popupga ruxsat bering.", 
           'error'
         );
-      } else if (error?.code === 'auth/cancelled-popup-request') {
-        // user closed popup, no error needed
+      } else if (error?.code === 'auth/cancelled-popup-request' || error?.code === 'auth/popup-closed-by-user') {
+        // user closed popup, no error needed to avoid annoying notifications
+        console.warn("User closed or cancelled the google authentication popup.");
       } else {
         showNotification(
           `Tizimga kirishda xatolik yuz berdi: ${error?.message || error}`, 
@@ -1721,11 +1744,13 @@ export default function App() {
 
     const unsubMine = firebaseService.subscribeToUserRequests(user.uid, setMyRequests);
     const unsubMahallas = firebaseService.subscribeToUserMahallas(user.uid, setMahallas);
+    const unsubProposals = firebaseService.subscribeToAllProposals(setProposals);
 
     return () => {
       unsubRequests?.();
       unsubMine();
       unsubMahallas();
+      unsubProposals();
     };
   }, [user, activeMahalla]);
 
@@ -1765,30 +1790,12 @@ export default function App() {
     try {
       await firebaseService.completeRequest(request.id, request.assigneeId);
       
-      // Anti-cheat verification checks
-      const isDailyLimit = await firebaseService.checkDailyXPLimit(request.assigneeId);
-      const isCollusionLimit = await firebaseService.checkCollusionLimit(request.assigneeId, request.requesterId);
-      
-      let karmaAwarded = false;
-      let msg = 'Yordam muvaffaqiyatli yakunlandi!';
-      
-      if (isDailyLimit) {
-        msg = "Yordam yakunlandi! Kunlik limitga erishilgan (Max 5 ta yoki 50 XP/kun). Bugun boshqa XP berilmaydi.";
-        showNotification(msg, 'error');
-      } else if (isCollusionLimit) {
-        msg = "Yordam yakunlandi! Ushbu qo'shningiz bilan limitga yetganingiz sababli (Max 3 ta o'zaro yordam) XP berilmadi.";
-        showNotification(msg, 'error');
-      } else {
-        await firebaseService.updateUserKarma(request.assigneeId, 10);
-        karmaAwarded = true;
-        msg = "Yordam muvaffaqiyatli topshirildi, +10 XP berildi!";
-        showNotification(msg, 'success');
-      }
+      await firebaseService.updateUserKarma(request.assigneeId, 10);
+      const msg = "Yordam muvaffaqiyatli topshirildi, +10 XP berildi!";
+      showNotification(msg, 'success');
       
       if (request.mahallaId) {
-        const logMsg = karmaAwarded 
-          ? `"${request.title}" yordamini yakunladi va +10 XP oldi.`
-          : `"${request.title}" yordamini yakunladi (XP limiti sababli ball berilmadi).`;
+        const logMsg = `"${request.title}" yordamini yakunladi va +10 XP oldi.`;
         
         await firebaseService.logEvent(
           request.mahallaId,
@@ -1801,6 +1808,97 @@ export default function App() {
     } catch (e) {
       console.error(e);
       showNotification('Xatolik yuz berdi.', 'error');
+    }
+  };
+
+  const handleVoteProposal = async (proposalId: string, votes: string[]) => {
+    if (!user) {
+      handleGoogleLogin();
+      return;
+    }
+    const hasVoted = votes.includes(user.uid);
+    try {
+      await firebaseService.voteProposal(proposalId, user.uid, !hasVoted);
+      showNotification(!hasVoted ? 'Tashabbusga ovozingiz muvaffaqiyatli qo\'shildi!' : 'Ovozingiz bekor qilindi.', 'success');
+    } catch (e) {
+      console.error(e);
+      showNotification('Ovoz berishda xatolik yuz berdi.', 'error');
+    }
+  };
+
+  const handleCreateProposalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !profile) {
+      handleGoogleLogin();
+      return;
+    }
+    if (newPropTitle.trim().length < 5) {
+      showNotification('Sarlavha kamida 5 ta harfdan iborat bo\'lishi shart.', 'error');
+      return;
+    }
+    if (newPropDesc.trim().length < 10) {
+      showNotification('Tavsif kamida 10 ta harfdan iborat bo\'lishi shart.', 'error');
+      return;
+    }
+    try {
+      await firebaseService.createProposal(
+        newPropTitle,
+        newPropDesc,
+        user.uid,
+        profile.displayName,
+        newPropCat,
+        activeMahalla ? activeMahalla.id : null
+      );
+      showNotification('Tashabbus muvaffaqiyatli forumga joylandi!', 'success');
+      setNewPropTitle('');
+      setNewPropDesc('');
+      setIsCreatingInline(false);
+    } catch (e) {
+      console.error(e);
+      showNotification('Nashr qilishda xatolik yuz berdi.', 'error');
+    }
+  };
+
+  const handleDeleteProposal = async (proposalId: string) => {
+    if (!user) return;
+    try {
+      await firebaseService.deleteProposal(proposalId, user.uid);
+      showNotification('Tashabbus o\'chirildi.', 'success');
+    } catch (e) {
+      console.error(e);
+      showNotification('O\'chirish ruxsat etilmadi.', 'error');
+    }
+  };
+
+  const handleSendChatbot = async () => {
+    if (!chatbotInput.trim()) return;
+    const userText = chatbotInput;
+    setChatbotInput('');
+    
+    // Append user message
+    const updatedMessages = [...chatbotMessages, { role: 'user' as const, text: userText }];
+    setChatbotMessages(updatedMessages);
+    setIsChatbotLoading(true);
+
+    try {
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ messages: updatedMessages })
+      });
+      const data = await response.json();
+      if (data.reply) {
+        setChatbotMessages([...updatedMessages, { role: 'assistant' as const, text: data.reply }]);
+      } else {
+        setChatbotMessages([...updatedMessages, { role: 'assistant' as const, text: 'Kechirasiz, aqlli ko\'makchidan javob olishda xatolik yuz berdi.' }]);
+      }
+    } catch (error) {
+      console.error(error);
+      setChatbotMessages([...updatedMessages, { role: 'assistant' as const, text: 'Kechirasiz, ulanishda xatolik yuz berdi. Iltimos qayta urinib ko\'ring.' }]);
+    } finally {
+      setIsChatbotLoading(false);
     }
   };
 
@@ -2005,20 +2103,20 @@ export default function App() {
                       <h3 className="text-base font-bold">Halollik va ishonch kafolati</h3>
                     </div>
                     <p className="text-slate-600 text-sm leading-relaxed mb-5 font-medium">
-                      CivicBridge — bu jamiyat ishonchini tiklash milliy loyihasidir. Ayrim shaxslar soxta yorliqlar bilan ball to'plashiga yo'l qo'ymaslik maqsadida quyidagi choralar joriy etilgan:
+                      CivicBridge — bu jamiyat ishonchini tiklash milliy loyihasidir. Hamjamiyatda faollikni oshirish va halollikni ta'minlash uchun quyidagi ko'rsatmalar amal qiladi:
                     </p>
                     <ul className="space-y-3.5 text-xs text-slate-500 font-medium">
                       <li className="flex gap-2.5">
                         <span className="w-4 h-4 bg-blue-50 text-blue-600 rounded flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-extrabold">1</span>
-                        <span><strong>Bir kunlik limit:</strong> Kuniga maksimal 50 XP (5 ta amaliy yordam) ball yig'ishga ruxsat etiladi xolos.</span>
+                        <span><strong>Cheksiz yordam va XP:</strong> Xohlagan vaqtingizda, istalgancha qo'shnilarizga yordam bera olasiz va har safar +10 XP olasiz.</span>
                       </li>
                       <li className="flex gap-2.5">
                         <span className="w-4 h-4 bg-blue-50 text-blue-600 rounded flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-extrabold">2</span>
-                        <span><strong>O'zaro hamkorlik cheklovi:</strong> Bitta inson hayotingizda sizga ko'pi bilan 3 marta ko'mak ballini tasdiqlay oladi.</span>
+                        <span><strong>Samimiy hamkorlik:</strong> Qo'shnilar bir-birlariga samimiy munosabatda bo'lishlari hamda real hayotdagi ko'makni tasdiqlashlari so'raladi.</span>
                       </li>
                       <li className="flex gap-2.5">
                         <span className="w-4 h-4 bg-blue-50 text-blue-600 rounded flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-extrabold">3</span>
-                        <span><strong>Komissiya tekshiruvi:</strong> 500 ball va 1000 ball marralarida mahalla faollari yordam tarixi, sayohat izlari va chatlarni to'liq auditdan o'tkazadi.</span>
+                        <span><strong>Faollar nazorati:</strong> Mahalla faollari tizim rivojlanishini, guruhlar faoliyatini va muammolar hal etilishini kuzatib boradilar.</span>
                       </li>
                     </ul>
                   </div>
@@ -2197,65 +2295,244 @@ export default function App() {
                   <div className="lg:col-span-3 space-y-6">
                     {activeTab === 'browse' ? (
                       <div className="space-y-6">
-                        {/* Categories List Horizontal slider */}
-                        <div className="overflow-x-auto pb-3 pt-1 -mx-4 px-4 scrollbar-none flex items-center gap-2 select-none w-full touch-pan-x scroll-smooth snap-x">
-                          {[
-                            { name: 'Barcha turlar', key: 'all', icon: <Globe size={13} />, bg: 'bg-slate-950 border-slate-950 text-white shadow-lg shadow-slate-950/10', inactive: 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50 hover:text-slate-950' },
-                            { name: 'Yumushlar', key: 'errands', icon: <ShoppingBag size={13} />, bg: 'bg-amber-500 border-amber-500 text-white shadow-md shadow-amber-500/15', inactive: 'bg-white text-slate-500 border-slate-100 hover:bg-amber-50/50 hover:text-amber-600' },
-                            { name: 'Ta\'mirlash', key: 'repairs', icon: <Wrench size={13} />, bg: 'bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-500/15', inactive: 'bg-white text-slate-500 border-slate-100 hover:bg-orange-50/50 hover:text-orange-600' },
-                            { name: 'Dars tayyorlash', key: 'tutoring', icon: <BookOpen size={13} />, bg: 'bg-indigo-500 border-indigo-500 text-white shadow-md shadow-indigo-500/15', inactive: 'bg-white text-slate-500 border-slate-100 hover:bg-indigo-50/50 hover:text-indigo-600' },
-                            { name: 'Bolalar', key: 'childcare', icon: <Baby size={13} />, bg: 'bg-pink-500 border-pink-500 text-white shadow-md shadow-pink-500/15', inactive: 'bg-white text-slate-500 border-slate-100 hover:bg-pink-50/50 hover:text-pink-600' },
-                            { name: 'Qariyalar', key: 'elderly care', icon: <Heart size={13} />, bg: 'bg-rose-500 border-rose-500 text-white shadow-md shadow-rose-500/15', inactive: 'bg-white text-slate-500 border-slate-100 hover:bg-rose-50/50 hover:text-rose-600' },
-                            { name: 'Boshqa', key: 'other', icon: <Sparkles size={13} />, bg: 'bg-slate-700 border-slate-700 text-white shadow-md shadow-slate-700/15', inactive: 'bg-white text-slate-400 border-slate-100 hover:bg-slate-100/60 hover:text-slate-900' },
-                          ].map(cat => {
-                            const isCatActive = activeCategory === cat.name;
-                            return (
-                              <button
-                                key={cat.key}
-                                onClick={() => setActiveCategory(cat.name)}
-                                className={cn(
-                                  "px-5 py-3 rounded-[18px] text-[10px] font-black uppercase tracking-wider border flex items-center gap-2 transition-all shrink-0 active:scale-95 duration-200",
-                                  isCatActive ? cat.bg : cat.inactive
-                                )}
-                              >
-                                {cat.icon}
-                                <span>{cat.name}</span>
-                              </button>
-                            );
-                          })}
-                          <div className="w-12 shrink-0 h-4 bg-transparent pointer-events-none" />
+                        {/* Categories List Slider and Map view switches */}
+                        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+                          <div className="overflow-x-auto pb-1 pt-1 scrollbar-none flex items-center gap-2 select-none touch-pan-x scroll-smooth snap-x flex-1">
+                            {[
+                              { name: 'Barcha turlar', key: 'all', icon: <Globe size={11} />, bg: 'bg-slate-950 border-slate-950 text-white shadow-lg shadow-slate-950/10', inactive: 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50 hover:text-slate-950' },
+                              { name: 'Yumushlar', key: 'errands', icon: <ShoppingBag size={11} />, bg: 'bg-amber-500 border-amber-500 text-white shadow-md shadow-amber-500/15', inactive: 'bg-white text-slate-500 border-slate-100 hover:bg-amber-50/50 hover:text-amber-600' },
+                              { name: 'Ta\'mirlash', key: 'repairs', icon: <Wrench size={11} />, bg: 'bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-500/15', inactive: 'bg-white text-slate-500 border-slate-100 hover:bg-orange-50/50 hover:text-orange-600' },
+                              { name: 'Dars tayyorlash', key: 'tutoring', icon: <BookOpen size={11} />, bg: 'bg-indigo-500 border-indigo-500 text-white shadow-md shadow-indigo-500/15', inactive: 'bg-white text-slate-500 border-slate-100 hover:bg-indigo-50/50 hover:text-indigo-600' },
+                              { name: 'Bolalar', key: 'childcare', icon: <Baby size={11} />, bg: 'bg-pink-500 border-pink-500 text-white shadow-md shadow-pink-500/15', inactive: 'bg-white text-slate-500 border-slate-100 hover:bg-pink-50/50 hover:text-pink-600' },
+                              { name: 'Qariyalar', key: 'elderly care', icon: <Heart size={11} />, bg: 'bg-rose-500 border-rose-500 text-white shadow-md shadow-rose-500/15', inactive: 'bg-white text-slate-500 border-slate-100 hover:bg-rose-50/50 hover:text-rose-600' },
+                              { name: 'Boshqa', key: 'other', icon: <Sparkles size={11} />, bg: 'bg-slate-700 border-slate-700 text-white shadow-md shadow-slate-700/15', inactive: 'bg-white text-slate-400 border-slate-100 hover:bg-slate-100/60 hover:text-slate-900' },
+                            ].map(cat => {
+                              const isCatActive = activeCategory === cat.name;
+                              return (
+                                <button
+                                  key={cat.key}
+                                  type="button"
+                                  onClick={() => setActiveCategory(cat.name)}
+                                  className={cn(
+                                    "px-4 py-2.5 rounded-[16px] text-[10px] font-black uppercase tracking-wider border flex items-center gap-1.5 transition-all shrink-0 active:scale-95 duration-200 cursor-pointer select-none",
+                                    isCatActive ? cat.bg : cat.inactive
+                                  )}
+                                >
+                                  {cat.icon}
+                                  <span>{cat.name}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Map Toggle switches */}
+                          <div className="flex bg-slate-100 p-1 rounded-xl self-start md:self-center shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMapViewActive(false);
+                                setActiveMapPin(null);
+                              }}
+                              className={cn(
+                                "px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer",
+                                !mapViewActive ? "bg-white text-slate-900 shadow-sm" : "text-slate-450 hover:text-slate-800"
+                              )}
+                            >
+                              Ro'yxat
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setMapViewActive(true)}
+                              className={cn(
+                                "px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer",
+                                mapViewActive ? "bg-white text-blue-600 shadow-sm" : "text-slate-450 hover:text-blue-500"
+                              )}
+                            >
+                              <Compass size={11} className="animate-pulse" /> Interaktiv Xarita
+                            </button>
+                          </div>
                         </div>
 
-                        {/* Request Cards Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <AnimatePresence mode='popLayout'>
-                            {filteredRequests.length > 0 ? (
-                              filteredRequests.map((req: HelpRequest) => (
-                                <RequestCard 
-                                  key={req.id} 
-                                  request={req} 
-                                  onRespond={handleRespond} 
-                                  showNotification={showNotification} 
-                                  onOpenChat={setIsChatOpen} 
-                                  onComplete={handleCompleteRequest}
-                                  onUserClick={setViewingProfile}
-                                />
-                              ))
-                            ) : (
-                              <motion.div 
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="col-span-full py-20 text-center border border-dashed border-slate-200 rounded-[40px] bg-slate-50/50"
-                              >
-                                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
-                                  <Search className="text-slate-200" size={32} />
-                                </div>
-                                <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Natija topilmadi</p>
-                                <p className="text-slate-300 text-xs mt-2 max-w-xs mx-auto font-medium">Qidiruv yoki filtrlarni o'zgartirib ko'ring.</p>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
+                        {/* Inner Feed Display */}
+                        {mapViewActive ? (
+                          <div className="bg-slate-950 rounded-[40px] border border-slate-800 p-6 md:p-8 shadow-2xl relative overflow-hidden h-[460px] flex flex-col justify-between">
+                            {/* SVG Decorative landmarks background */}
+                            <div className="absolute inset-0 opacity-20 pointer-events-none select-none">
+                              <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                                {/* Water element: Bo'zsu kanali */}
+                                <path d="M -100,50 C 120,130 180,-30 550,180 C 720,280 950,90 1200,165" fill="none" stroke="#2563eb" strokeWidth="40" opacity="0.3" />
+                                <path d="M -100,50 C 120,130 180,-30 550,180 C 720,280 950,90 1200,165" fill="none" stroke="#60a5fa" strokeWidth="10" opacity="0.5" strokeDasharray="4,4" />
+                                
+                                {/* Park area */}
+                                <rect x="35%" y="45%" width="25%" height="25%" rx="16" fill="#10b981" opacity="0.12" />
+                                <text x="47%" y="58%" fill="#34d399" fontSize="9" fontWeight="black" letterSpacing="0.15em" textAnchor="middle" opacity="0.4">OBOD MAHALLA BOG'I</text>
+                                
+                                {/* Main street: Alisher Navoiy ko'chasi */}
+                                <line x1="5%" y1="85%" x2="95%" y2="15%" stroke="#334155" strokeWidth="12" />
+                                <line x1="5%" y1="85%" x2="95%" y2="15%" stroke="#64748b" strokeWidth="1.5" strokeDasharray="5,6" />
+                                <text x="50%" y="46%" fill="#cbd5e1" fontSize="9" transform="rotate(-21 300 210)" fontWeight="black" letterSpacing="0.1em" opacity="0.25">NAVOU KO'CHASI</text>
+                                
+                                {/* Secondary street: Ziyolilar ko'chasi */}
+                                <line x1="25%" y1="5%" x2="50%" y2="95%" stroke="#334155" strokeWidth="10" />
+                                <line x1="25%" y1="5%" x2="50%" y2="95%" stroke="#64748b" strokeWidth="1" strokeDasharray="3,5" />
+                                <text x="41%" y="60%" fill="#cbd5e1" fontSize="9" transform="rotate(72 250 250)" fontWeight="black" letterSpacing="0.1em" opacity="0.25">ZIYOLILAR KO'CHASI</text>
+                                
+                                {/* Houses boxes */}
+                                <rect x="15%" y="15%" width="32" height="32" rx="6" fill="#475569" opacity="0.12" />
+                                <rect x="75%" y="30%" width="30" height="30" rx="6" fill="#475569" opacity="0.12" />
+                                <rect x="10%" y="60%" width="38" height="38" rx="6" fill="#475569" opacity="0.12" />
+                                <rect x="80%" y="70%" width="32" height="32" rx="6" fill="#475569" opacity="0.12" />
+                              </svg>
+                            </div>
+
+                            {/* Map header info */}
+                            <div className="relative z-10 flex justify-between items-center bg-slate-900/40 backdrop-blur-md p-3.5 rounded-2xl border border-white/5">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-350">Xarita radar tizimi</span>
+                              </div>
+                              <span className="text-[9px] font-black text-slate-400 bg-slate-800 px-3 py-1.5 rounded-xl uppercase tracking-wider border border-white/5">
+                                {filteredRequests.length} ta e'lon faol
+                              </span>
+                            </div>
+
+                            {/* Pins container area absolute */}
+                            <div className="absolute inset-0 top-18 bottom-6 overflow-hidden">
+                              {filteredRequests.map((req) => {
+                                // Deterministic stable coordinates for any request based on ID
+                                let hash = 0;
+                                for (let i = 0; i < req.id.length; i++) {
+                                  hash = req.id.charCodeAt(i) + ((hash << 5) - hash);
+                                }
+                                const px = 15 + Math.abs(hash % 70); // 15% to 85%
+                                const py = 20 + Math.abs((hash >> 8) % 60); // 20% to 80%
+
+                                const isSelected = activeMapPin?.id === req.id;
+                                const categoryColors: Record<string, string> = {
+                                  'errands': 'bg-amber-500 hover:bg-amber-600',
+                                  'repairs': 'bg-orange-500 hover:bg-orange-600',
+                                  'tutoring': 'bg-indigo-505 hover:bg-indigo-610 bg-indigo-500', // support custom values
+                                  'childcare': 'bg-pink-500 hover:bg-pink-600',
+                                  'elderly care': 'bg-rose-500 hover:bg-rose-600',
+                                  'other': 'bg-slate-500 hover:bg-slate-600'
+                                };
+                                const colClass = categoryColors[req.category] || 'bg-blue-500';
+
+                                return (
+                                  <div
+                                    key={req.id}
+                                    style={{ left: `${px}%`, top: `${py}%` }}
+                                    className="absolute -translate-x-1/2 -translate-y-1/2 z-20"
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveMapPin(req)}
+                                      className="relative flex items-center justify-center p-2 group cursor-pointer transition-transform hover:scale-125 focus:outline-none"
+                                    >
+                                      {/* Outer pulse circle */}
+                                      <span className={cn("absolute inline-flex h-9 w-9 rounded-full opacity-40 animate-ping", colClass)}></span>
+                                      
+                                      {/* Inner Category dot indicator */}
+                                      <div className={cn(
+                                        "w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white shadow-lg transition-transform hover:rotate-6",
+                                        colClass,
+                                        isSelected ? "scale-115 ring-2 ring-blue-500 border-yellow-350" : ""
+                                      )}>
+                                        {req.category === 'errands' && <ShoppingBag size={12} />}
+                                        {req.category === 'repairs' && <Wrench size={12} />}
+                                        {req.category === 'tutoring' && <BookOpen size={12} />}
+                                        {req.category === 'childcare' && <Baby size={12} />}
+                                        {req.category === 'elderly care' && <Heart size={12} />}
+                                        {req.category === 'other' && <Sparkles size={12} />}
+                                      </div>
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Floating panel drawer on bottom for selected pin */}
+                            <div className="relative z-30 pointer-events-none w-full">
+                              <AnimatePresence>
+                                {activeMapPin && (
+                                  <motion.div
+                                    initial={{ y: 30, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    exit={{ y: 30, opacity: 0 }}
+                                    className="pointer-events-auto bg-slate-900/95 backdrop-blur-md border border-white/10 p-4 rounded-3xl shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 max-w-lg mx-auto"
+                                  >
+                                    <div className="text-left">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className={cn(
+                                          "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider text-white",
+                                          activeMapPin.urgency === 'high' ? 'bg-red-650 bg-red-600' : 'bg-slate-700'
+                                        )}>
+                                          {activeMapPin.urgency === 'high' ? 'Muhim' : 'Oddiy'}
+                                        </span>
+                                        <span className="text-[9px] font-black uppercase tracking-wider text-blue-400">
+                                          {activeMapPin.category.toUpperCase()}
+                                        </span>
+                                      </div>
+                                      <h4 className="text-[11px] font-black text-white uppercase tracking-tight line-clamp-1">{activeMapPin.title}</h4>
+                                      <p className="text-[10px] text-slate-400 line-clamp-1 mt-0.5 font-semibold">{activeMapPin.description}</p>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setIsChatOpen(activeMapPin);
+                                          setActiveMapPin(null);
+                                        }}
+                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer"
+                                      >
+                                        Muloqot
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setActiveMapPin(null)}
+                                        className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-xl transition-all cursor-pointer"
+                                      >
+                                        Yopish
+                                      </button>
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          </div>
+                        ) : (
+                          /* Standard Cards Grid list */
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <AnimatePresence mode='popLayout'>
+                              {filteredRequests.length > 0 ? (
+                                filteredRequests.map((req: HelpRequest) => (
+                                  <RequestCard 
+                                    key={req.id} 
+                                    request={req} 
+                                    onRespond={handleRespond} 
+                                    showNotification={showNotification} 
+                                    onOpenChat={setIsChatOpen} 
+                                    onComplete={handleCompleteRequest}
+                                    onUserClick={setViewingProfile}
+                                  />
+                                ))
+                              ) : (
+                                <motion.div 
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  className="col-span-full py-20 text-center border border-dashed border-slate-200 rounded-[40px] bg-slate-50/50"
+                                >
+                                  <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
+                                    <Search className="text-slate-200" size={32} />
+                                  </div>
+                                  <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Natija topilmadi</p>
+                                  <p className="text-slate-300 text-xs mt-2 max-w-xs mx-auto font-medium">Qidiruv yoki filtrlarni o'zgartirib ko'ring.</p>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-6">
@@ -2512,16 +2789,16 @@ export default function App() {
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-rose-600 block mb-2">Kunlik cheklov</span>
-                          <p className="text-xs text-slate-500 leading-relaxed font-semibold">Max 50 XP (5 ta yordam) kunlik limit bor. Bu ballarni bir kunda g'ayrioddiy tez yig'ilishidan saqlaydi.</p>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-rose-600 block mb-2">Erkin yordam</span>
+                          <p className="text-xs text-slate-500 leading-relaxed font-semibold">Hech qanday kunlik limit yoki cheklovlarsiz, istalgan vaqtda istalgancha yordam berishingiz va XP yig'ishingiz mumkin.</p>
                         </div>
                         <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 block mb-2">O'zaro hamkorlik</span>
-                          <p className="text-xs text-slate-500 leading-relaxed font-semibold">Bitta foydalanuvchidan maksimal 3 tagacha yakunlangan yordam qabul qilinadi. Do'stona soxtalikni butunlay cheklaydi.</p>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 block mb-2">Do'stona ko'mak</span>
+                          <p className="text-xs text-slate-500 leading-relaxed font-semibold">Qo'shnilaringizga yordam berib ularni hayotini osonlashtiring, hamma bir-biriga xohlagancha erkin yordam bera oladi.</p>
                         </div>
                         <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 block mb-2">Audit Komissiyasi</span>
-                          <p className="text-xs text-slate-500 leading-relaxed font-semibold">Tizim oqsoqollari 500 XP va 1000 XP darajalarida barcha e'lonlar, chat yozishmalari hamda joylashuvlarni qat'iy audit qiladi.</p>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 block mb-2">Hamjamiyat Nazorati</span>
+                          <p className="text-xs text-slate-500 leading-relaxed font-semibold">Mahalla oqsoqollari hamda faollar tizim rivojlanishini kuzatib, ezgu ishlarni qo'llab-quvvatlaydilar.</p>
                         </div>
                       </div>
 
@@ -2575,19 +2852,310 @@ export default function App() {
                 </div>
               </motion.div>
             )}
+
+            {/* TAB 5: FORUM / TAKLIFLAR */}
+            {mainTab === 'forum' && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.99 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="space-y-6"
+              >
+                {/* Header info */}
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white border border-slate-200/50 rounded-2xl p-6 shadow-sm text-left">
+                  <div>
+                    <h2 className="text-xl font-black tracking-tight text-slate-930 flex items-center gap-2 uppercase">
+                      <MessageSquare size={18} className="text-blue-500" /> Mahalla Jamoat Forum / Takliflari
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-1 font-semibold font-sans">Qo'shnilarimiz tomonidan ekologiya, infratuzilma va tadbirlarni rivojlantirish bo'yicha berilgan takliflar.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsCreatingInline(!isCreatingInline)}
+                    className="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-[16px] text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-md shadow-blue-500/10 active:scale-95 shrink-0"
+                  >
+                    {isCreatingInline ? "Bekor qilish" : "Tashabbus qo'shish"}
+                  </button>
+                </div>
+
+                {/* Inline Creation Form */}
+                {isCreatingInline && (
+                  <motion.form
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    onSubmit={handleCreateProposalSubmit}
+                    className="p-6 bg-white border border-slate-200 rounded-[28px] shadow-sm text-left space-y-4 max-w-xl mx-auto"
+                  >
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Yangi Jamoat Tashabbusi</h3>
+                    
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Tashabbus turi (Mavzu)</label>
+                      <select
+                        value={newPropCat}
+                        onChange={(e) => setNewPropCat(e.target.value as any)}
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all font-sans"
+                      >
+                        <option value="infrastructure">Yo'llar & Infratuzilma</option>
+                        <option value="ecology font-sans">Yashil ekologiya & Daraxtlar</option>
+                        <option value="events font-sans">Bayramlar, Sport & To'ylar</option>
+                        <option value="charity font-sans">Mehr-shafqat & Xayriyalar</option>
+                        <option value="other font-sans">Boshqa loyihalar</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Tashabbus sarlavhasi</label>
+                      <input
+                        type="text"
+                        placeholder="Masalan: Domimiz podyezdiga toza filter o'rnatish..."
+                        value={newPropTitle}
+                        onChange={(e) => setNewPropTitle(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold transition-all focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">To'liq batafsil bayoni</label>
+                      <textarea
+                        rows={3}
+                        placeholder="Ushbu tashabbus nega mahallamizga kerakligi, qanchalik foydali bo'lishi va uni qanday tashkil etmoqchi ekanligingiz haqida yozing..."
+                        value={newPropDesc}
+                        onChange={(e) => setNewPropDesc(e.target.value)}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold transition-all focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full py-4 bg-slate-950 hover:bg-slate-900 text-white rounded-[18px] text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer font-sans"
+                    >
+                      Forumga e'lon qilish
+                    </button>
+                  </motion.form>
+                )}
+
+                {/* Proposals Search & Filter bar representation */}
+                <div className="flex flex-col md:flex-row gap-4 items-center justify-between text-left">
+                  <div className="relative w-full md:max-w-xs">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-350" size={14} />
+                    <input
+                      type="text"
+                      placeholder="Takliflarni qidirish..."
+                      value={proposalSearchQuery}
+                      onChange={(e) => setProposalSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-xl text-xs font-bold text-slate-850 placeholder:text-slate-350 focus:outline-none focus:ring-1 focus:ring-blue-550 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="flex bg-slate-100 p-1 rounded-xl w-full md:w-auto overflow-x-auto scrollbar-none">
+                    {['Barcha turlar', 'infrastructure', 'ecology', 'events', 'charity', 'other'].map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setProposalCategory(cat)}
+                        className={cn(
+                          "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer",
+                          proposalCategory === cat ? "bg-white text-slate-900 shadow-sm" : "text-slate-450 hover:text-slate-75"
+                        )}
+                      >
+                        {cat === 'Barcha turlar' ? 'Barchasi' : cat === 'infrastructure' ? 'Infratuzilma' : cat === 'ecology' ? 'Ekologiya' : cat === 'events' ? 'Tadbirlar' : cat === 'charity' ? 'Xayriya' : 'Boshqa'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Proposals cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                  {proposals
+                    .filter(p => proposalCategory === 'Barcha turlar' || p.category === proposalCategory)
+                    .filter(p => p.title.toLowerCase().includes(proposalSearchQuery.toLowerCase()) || p.description.toLowerCase().includes(proposalSearchQuery.toLowerCase()))
+                    .length > 0 ? (
+                      proposals
+                        .filter(p => proposalCategory === 'Barcha turlar' || p.category === proposalCategory)
+                        .filter(p => p.title.toLowerCase().includes(proposalSearchQuery.toLowerCase()) || p.description.toLowerCase().includes(proposalSearchQuery.toLowerCase()))
+                        .map(p => {
+                          const hasVoted = p.votes?.includes(user?.uid || '');
+                          const isAuthor = p.creatorId === user?.uid;
+                          return (
+                            <motion.div
+                              layout
+                              key={p.id}
+                              className="bg-white border border-slate-200/60 p-6 rounded-[32px] shadow-sm flex flex-col justify-between hover:border-slate-300 transition-all group"
+                            >
+                              <div>
+                                <div className="flex justify-between items-start gap-3 mb-4">
+                                  <div className="flex items-center gap-2">
+                                    <span className={cn(
+                                      "px-3 py-1 rounded-full text-[8.5px] font-black uppercase tracking-wider",
+                                      p.category === 'ecology' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                      p.category === 'infrastructure' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
+                                      p.category === 'events' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                                      p.category === 'charity' ? 'bg-red-50 text-red-650 border border-red-100 font-sans' :
+                                      'bg-slate-50 text-slate-600 border border-slate-100 font-sans'
+                                    )}>
+                                      {p.category === 'ecology' ? 'Ekologiya' : p.category === 'infrastructure' ? 'Infratuzilma' : p.category === 'events' ? 'Tadbirlar' : p.category === 'charity' ? 'Xayriya' : 'Boshqa'}
+                                    </span>
+                                    <span className="text-[7.5px] font-black uppercase tracking-widest text-[#B5B5B5]">STATUS: {p.status?.toUpperCase() || 'YANGI'}</span>
+                                  </div>
+
+                                  {isAuthor && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteProposal(p.id)}
+                                      className="p-1 px-2.5 bg-red-50 hover:bg-red-600 text-red-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer font-sans"
+                                      title="Taklifni o'chirish"
+                                    >
+                                      O'chirish
+                                    </button>
+                                  )}
+                                </div>
+
+                                <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight line-clamp-2 leading-tight mb-2 group-hover:text-blue-600 transition-colors">{p.title}</h3>
+                                <p className="text-xs text-slate-550 text-slate-500 leading-relaxed font-semibold mb-6">{p.description}</p>
+                              </div>
+
+                              <div className="flex justify-between items-center border-t border-slate-50 pt-4 mt-auto">
+                                <div className="text-left">
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Muallif</p>
+                                  <p className="text-[10px] font-bold text-slate-800 lowercase truncate max-w-[130px] mt-0.5">@{p.creatorName?.split(' ')[0]}</p>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleVoteProposal(p.id, p.votes || [])}
+                                  className={cn(
+                                    "px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-wide flex items-center gap-1.5 transition-all select-none cursor-pointer font-sans",
+                                    hasVoted 
+                                      ? "bg-rose-500 hover:bg-rose-600 text-white shadow-md shadow-rose-550/10" 
+                                      : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                                  )}
+                                >
+                                  <span>{hasVoted ? 'Qo\'llab-quvvatlandi' : 'Qo\'llab-quvvatlash'}</span>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-30"></span>
+                                  <span className="font-extrabold text-[10px]">{p.votes?.length || 0}</span>
+                                </button>
+                              </div>
+                            </motion.div>
+                          );
+                        })
+                    ) : (
+                      <div className="col-span-full py-16 text-center border-2 border-dashed border-slate-200/70 rounded-[40px] bg-slate-50/20">
+                        <p className="text-slate-400 font-black uppercase tracking-wider text-xs">Ushbu turkumda takliflar topilmadi.</p>
+                        <p className="text-slate-300 text-[10px] mt-1 font-semibold">Birinchi bo'lib o'z tashabbusingizni forumda joylashtiring!</p>
+                      </div>
+                    )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* TAB 6: AI ASSISTANT CHAT */}
+            {mainTab === 'ai' && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.99 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="max-w-4xl mx-auto space-y-6"
+              >
+                {/* Header intro info */}
+                <div className="bg-white border border-slate-200/50 p-6 rounded-2xl shadow-sm text-left flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-black tracking-tight text-slate-930 flex items-center gap-2 uppercase">
+                      <Sparkles size={18} className="text-amber-500 animate-pulse fill-amber-500" /> Aqlli Mahalla AI Ko'makchisi
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-1 font-semibold">Mahalla jamoat qoidalari, ezgu yordam ishlari, yoki nizolarni yumshatish buyicha AI yordamchining professional ko'magi.</p>
+                  </div>
+                  <span className="text-[9px] font-black text-amber-600 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-xl uppercase tracking-widest shrink-0 animate-pulse font-sans">
+                    Gemini v3.5 Faol
+                  </span>
+                </div>
+
+                {/* Chat window body */}
+                <div className="bg-white border border-slate-200 rounded-[35px] shadow-sm overflow-hidden flex flex-col h-[520px]">
+                  {/* Message stack scroll */}
+                  <div className="flex-1 p-6 overflow-y-auto space-y-4 scrollbar-none flex flex-col">
+                    {chatbotMessages.map((msg, i) => (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        key={i}
+                        className={cn(
+                          "max-w-[75%] p-4 rounded-3xl text-xs leading-relaxed font-semibold self-start text-left",
+                          msg.role === 'user'
+                            ? "bg-slate-950 text-white rounded-tr-none self-end ml-auto"
+                            : "bg-slate-100 text-slate-800 rounded-tl-none whitespace-pre-wrap"
+                        )}
+                      >
+                        {msg.text}
+                      </motion.div>
+                    ))}
+
+                    {isChatbotLoading && (
+                      <div className="self-start text-[10px] font-black text-amber-550 text-amber-500 bg-amber-50 uppercase tracking-widest px-4 py-2 rounded-xl animate-pulse">
+                        AIdosh yozmoqda...
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Quick suggest tags toolbar */}
+                  <div className="p-3 bg-slate-50 border-t border-slate-100 flex gap-2 overflow-x-auto scrollbar-none select-none">
+                    {[
+                      "Mahallada Karma ballarini qanday tez yig'aman?",
+                      "Qo'shnilar bilan birdamlik tadbiri e'lonini yozib ber",
+                      "Keksalar xizmatini tashkil etishda AI maslahatlari"
+                    ].map((promptText) => (
+                      <button
+                        key={promptText}
+                        type="button"
+                        onClick={() => setChatbotInput(promptText)}
+                        className="px-3.5 py-2 bg-white border border-slate-200/50 rounded-xl text-[10px] font-bold text-slate-500 hover:text-slate-800 hover:border-slate-350 transition-all cursor-pointer shrink-0"
+                      >
+                        {promptText}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Input container */}
+                  <div className="p-4 bg-white border-t border-slate-100 flex items-center gap-3">
+                    <input
+                      type="text"
+                      placeholder="AI ko'makchidan so'rang..."
+                      value={chatbotInput}
+                      onChange={(e) => setChatbotInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendChatbot()}
+                      className="flex-1 px-4 py-3.5 bg-slate-50 border border-slate-100/60 rounded-2xl text-xs font-bold focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-slate-850 placeholder:text-slate-300"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSendChatbot}
+                      className="px-5 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-md shadow-blue-500/10 active:scale-95"
+                    >
+                      So'rash
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </div>
         )}
       </main>
 
       {/* Mobile Tab Switcher - Fixed Floating Bottom Dock */}
       {user && (
-        <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[360px] bg-slate-900/90 backdrop-blur-xl border border-white/10 p-2 rounded-[24px] shadow-[0_24px_50px_rgba(0,0,0,0.3)] z-[100] flex justify-between items-center select-none">
+        <div className="lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-[420px] bg-slate-900/90 backdrop-blur-xl border border-white/10 p-1.5 rounded-[22px] shadow-[0_24px_50px_rgba(0,0,0,0.4)] z-[100] flex justify-between items-center select-none">
           {[
-            { id: 'home', label: 'Ma\'lumot', icon: <Compass size={18} /> },
-            { id: 'feed', label: 'E\'lonlar', icon: <Heart size={18} /> },
-            { id: 'mahallas', label: 'Mahallalar', icon: <Users size={18} /> },
-            { id: 'rewards', label: 'Reyting', icon: <Trophy size={18} /> },
+            { id: 'home', label: 'Asosiy', icon: <Compass size={15} /> },
+            { id: 'feed', label: 'Yordam', icon: <Heart size={15} /> },
+            { id: 'forum', label: 'Forum', icon: <MessageSquare size={15} /> },
+            { id: 'ai', label: 'AI', icon: <Sparkles size={15} className="text-amber-400" /> },
+            { id: 'mahallas', label: 'Koort', icon: <Users size={15} /> }, // Note 'Koort' can be 'Guruh', let's use 'Mahalla' or 'Guruhlar' for perfect clarity
+            { id: 'rewards', label: 'Reyting', icon: <Trophy size={15} /> },
           ].map(tab => {
+            const labelMap: Record<string, string> = {
+              'Asosiy': 'Asosiy',
+              'Yordam': 'Yordam',
+              'Forum': 'Forum',
+              'AI': 'AI',
+              'Koort': 'Mahallalar', // Correct word display label dynamically
+              'Reyting': 'Reyting'
+            };
+            const label = labelMap[tab.label] || tab.label;
             const isActive = mainTab === tab.id;
             return (
               <button
@@ -2608,7 +3176,7 @@ export default function App() {
                   />
                 )}
                 {tab.icon}
-                <span className="text-[8.5px] font-bold uppercase tracking-wider mt-1">{tab.label}</span>
+                <span className="text-[8px] font-bold uppercase tracking-wider mt-1">{label}</span>
               </button>
             );
           })}
