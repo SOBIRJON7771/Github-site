@@ -41,8 +41,14 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errMsg = error instanceof Error ? error.message : String(error);
+  if (errMsg.includes('offline') || errMsg.includes('Backend didn\'t respond') || errMsg.includes('Could not reach Cloud Firestore')) {
+    console.warn(`Firestore operating in offline mode for [${operationType}] at [${path}]:`, errMsg);
+    return;
+  }
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errMsg,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,

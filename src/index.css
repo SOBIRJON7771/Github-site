@@ -8,23 +8,49 @@
 
 @layer base {
   body {
-    @apply antialiased text-slate-800 bg-[#F8FAFC];
+    @apply antialiased text-slate-900 bg-slate-50/50 selection:bg-blue-100 selection:text-blue-900;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(241, 245, 249, 0.4) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(219, 234, 254, 0.3) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(238, 242, 255, 0.4) 0px, transparent 50%);
+    background-attachment: fixed;
   }
 }
 
+/* Custom Premium UI overrides for smooth, high-end feel */
 .premium-card {
-  @apply bg-white border border-slate-100 shadow-[0_12px_40px_-12px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.01)] rounded-2xl md:rounded-[24px] hover:shadow-[0_30px_70px_-15px_rgba(15,23,42,0.08)] hover:border-slate-200/65 transition-all duration-300;
+  @apply bg-white/90 backdrop-blur-xl border border-slate-200/40 rounded-[32px] p-6 md:p-8 shadow-[0_10px_35px_-8px_rgba(15,23,42,0.02),0_1px_2px_rgba(15,23,42,0.01)] hover:shadow-[0_30px_70px_-10px_rgba(15,23,42,0.07)] hover:border-slate-300 hover:-translate-y-1 transition-all duration-300;
 }
 
 .premium-dark-card {
-  @apply bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800/80 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] rounded-2xl md:rounded-[28px] overflow-hidden;
+  @apply bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 border border-slate-800/80 shadow-[0_30px_70px_-20px_rgba(15,23,42,0.35)] rounded-[36px] overflow-hidden;
 }
 
 .glass-pill {
-  @apply bg-white/80 backdrop-blur-md border border-slate-100 shadow-sm rounded-full px-4 py-2 text-xs font-semibold;
+  @apply bg-white/70 backdrop-blur-md border border-slate-200/20 shadow-sm rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-wider text-slate-600;
 }
 
 .accent-glow {
-  @apply absolute rounded-full blur-[120px] pointer-events-none opacity-30 mix-blend-multiply;
+  @apply absolute rounded-full blur-[120px] pointer-events-none opacity-25 mix-blend-multiply;
 }
+
+/* Elegant and organic scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.08);
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.16);
+}
+
 

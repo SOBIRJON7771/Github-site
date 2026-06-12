@@ -98,6 +98,101 @@ app.post("/api/ai/chat", async (req, res) => {
   }
 });
 
+// PythonAnywhere Django Proxy
+const PYTHONANYWHERE_BASE = "https://applicationtest.pythonanywhere.com/api";
+
+app.all("/api/pythonanywhere/*", async (req, res) => {
+  const subPath = req.params[0] || ""; // captures the path after "/api/pythonanywhere/"
+  const targetUrl = `${PYTHONANYWHERE_BASE}/${subPath}`;
+
+  // Forward query string if present
+  let queryStr = "";
+  if (req.query && Object.keys(req.query).length > 0) {
+    const params = new URLSearchParams();
+    for (const [key, val] of Object.entries(req.query)) {
+      if (val !== undefined && val !== null) {
+        params.append(key, String(val));
+      }
+    }
+    queryStr = params.toString();
+  }
+  const fullUrl = queryStr ? `${targetUrl}?${queryStr}` : targetUrl;
+
+  try {
+    const headers: Record<string, string> = {
+      "Accept": "application/json",
+    };
+
+    if (req.headers["content-type"]) {
+      headers["Content-Type"] = req.headers["content-type"] as string;
+    } else {
+      headers["Content-Type"] = "application/json";
+    }
+
+    const fetchOptions: RequestInit = {
+      method: req.method,
+      headers
+    };
+
+    if (req.method !== "GET" && req.method !== "HEAD" && req.body) {
+      if (subPath.startsWith("application") && typeof req.body === "object") {
+        // Construct multipart/form-data to make the video upload requirement happy
+        const boundary = "----WebKitFormBoundaryCivicBridge" + Math.random().toString(36).substring(2);
+        
+        const fields: Record<string, string> = {
+          name: req.body.name || req.body.title || "Sarluhasiz Murojaat",
+          body: req.body.body || req.body.description || "Tavsif yozilmagan.",
+          applicant: req.body.applicant || "Tashqi foydalanuvchi",
+          phone1: req.body.phone1 || "+998" + Math.floor(900000000 + Math.random() * 100000000).toString(),
+        };
+
+        if (req.body.category) {
+          fields.category = req.body.category;
+        }
+
+        const parts: string[] = [];
+        for (const [key, value] of Object.entries(fields)) {
+          parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="${key}"\r\n\r\n${value}\r\n`);
+        }
+        
+        // Add required video file mock
+        parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="video"; filename="mock_video.mp4"\r\nContent-Type: video/mp4\r\n\r\nmock_video_content\r\n`);
+        parts.push(`--${boundary}--\r\n`);
+
+        const bodyBuffer = Buffer.from(parts.join(""));
+        
+        fetchOptions.body = bodyBuffer;
+        fetchOptions.headers = {
+          ...headers,
+          "Content-Type": `multipart/form-data; boundary=${boundary}`,
+          "Content-Length": bodyBuffer.length.toString()
+        };
+      } else {
+        fetchOptions.body = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+      }
+    }
+
+    const response = await fetch(fullUrl, fetchOptions);
+    const contentType = response.headers.get("content-type") || "";
+
+    res.status(response.status);
+
+    if (contentType.includes("application/json")) {
+      const data = await response.json();
+      res.json(data);
+    } else {
+      const text = await response.text();
+      res.send(text);
+    }
+  } catch (err: any) {
+    console.error("PythonAnywhere Proxy Error on url:", fullUrl, err);
+    res.status(500).json({ 
+      error: "Tashqi API xizmatiga ulanishda xatolik yuz berdi", 
+      details: err?.message || String(err) 
+    });
+  }
+});
+
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });

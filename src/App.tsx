@@ -46,6 +46,7 @@ import {
 import { auth, loginWithGoogle, logout } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { firebaseService, UserProfile, HelpRequest, Message, Mahalla, Proposal } from './services/firebaseService';
+import { apiService } from './services/apiService';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { formatDistanceToNow } from 'date-fns';
@@ -71,7 +72,8 @@ const Navbar = ({
   resetView, 
   mainTab, 
   setMainTab,
-  onLogin
+  onLogin,
+  isOnline = true
 }: { 
   user: User | null; 
   profile: UserProfile | null; 
@@ -80,30 +82,31 @@ const Navbar = ({
   mainTab: 'home' | 'feed' | 'forum' | 'ai' | 'mahallas' | 'rewards'; 
   setMainTab: (tab: 'home' | 'feed' | 'forum' | 'ai' | 'mahallas' | 'rewards') => void; 
   onLogin?: () => void;
+  isOnline?: boolean;
 }) => {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 px-4 py-4 md:py-5">
-      <div className="max-w-7xl mx-auto backdrop-blur-xl bg-white/80 rounded-2xl px-5 md:px-7 py-3 md:py-3.5 flex justify-between items-center border border-slate-200/50 shadow-[0_15px_35px_-10px_rgba(15,23,42,0.06),0_1px_2px_rgba(15,23,42,0.02)] transition-all">
+    <nav className="fixed top-0 left-0 right-0 z-50 px-4 py-4 md:py-6">
+      <div className="max-w-7xl mx-auto backdrop-blur-2xl bg-white/70 rounded-[28px] px-5 md:px-8 py-3 flex justify-between items-center border border-slate-200/40 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.05)] transition-all">
         <div 
           onClick={() => { resetView(); setMainTab('home'); }}
           className="flex items-center gap-3 shrink-0 transition-transform active:scale-98 cursor-pointer group"
         >
-          <div className="w-9 h-9 md:w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white shadow-lg overflow-hidden relative">
+          <div className="w-10 h-10 bg-slate-950 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/10 overflow-hidden relative border border-white/10">
              <div className="absolute inset-0 bg-blue-600 opacity-0 group-hover:opacity-10 transition-opacity"></div>
-            <Heart size={15} fill="white" className="relative z-10 transition-transform group-hover:scale-110" />
+            <Heart size={16} fill="white" className="relative z-10 transition-transform group-hover:scale-110" />
           </div>
           <div>
-            <span className="font-display font-bold text-lg md:text-xl tracking-tight block leading-none text-slate-900">CivicBridge</span>
-            <span className="text-[8px] text-blue-600 font-bold uppercase tracking-widest mt-1 block opacity-80">Raqamli Ko'mak</span>
+            <span className="font-display font-extrabold text-lg md:text-xl tracking-tight block leading-none text-slate-950">CivicBridge</span>
+            <span className="text-[8px] text-blue-600 font-extrabold uppercase tracking-[0.25em] mt-1 block opacity-90">Raqamli Ko'mak</span>
           </div>
         </div>
 
         {user && (
-          <div className="hidden lg:flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+          <div className="hidden lg:flex items-center gap-1 bg-slate-100/60 backdrop-blur-md p-1.5 rounded-2xl border border-slate-200/20">
             {[
               { id: 'home', label: 'Tushuntirish', icon: <Compass size={13} /> },
               { id: 'feed', label: 'Yordam e\'lonlari', icon: <Heart size={13} /> },
-              { id: 'forum', label: 'Munozaralar / Forum', icon: <MessageSquare size={13} /> },
+              { id: 'forum', label: 'Forum', icon: <MessageSquare size={13} /> },
               { id: 'mahallas', label: 'Mahallalar', icon: <Users size={13} /> },
               { id: 'rewards', label: 'Reyting & Sovrin', icon: <Trophy size={13} /> },
               { id: 'ai', label: 'AI Ko\'makchi', icon: <Sparkles size={13} className="text-amber-500 animate-pulse" /> },
@@ -114,7 +117,7 @@ const Navbar = ({
                   key={tab.id}
                   onClick={() => setMainTab(tab.id as any)}
                   className={cn(
-                    "px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider flex items-center gap-2 relative transition-all active:scale-95 duration-200 select-none",
+                    "px-4.5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center gap-2 relative transition-all active:scale-95 duration-205 select-none",
                     isActive 
                       ? "text-slate-950 font-extrabold" 
                       : "text-slate-500 hover:text-slate-800"
@@ -123,8 +126,8 @@ const Navbar = ({
                   {isActive && (
                     <motion.div
                       layoutId="activeTabPill"
-                      transition={{ type: "spring", stiffness: 400, damping: 28 }}
-                      className="absolute inset-0 bg-white shadow-sm border border-slate-200/50 rounded-lg"
+                      transition={{ type: "spring", stiffness: 420, damping: 30 }}
+                      className="absolute inset-0 bg-white shadow-[0_4px_12px_rgba(15,23,42,0.03)] border border-slate-200/40 rounded-xl"
                     />
                   )}
                   <span className="relative z-10 flex items-center gap-1.5">
@@ -138,6 +141,12 @@ const Navbar = ({
         )}
 
         <div className="flex items-center gap-4">
+          {!isOnline && (
+            <div className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-600 px-3 py-1.5 rounded-xl text-[9px] font-black tracking-wider uppercase animate-pulse shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              <span>Oflayn</span>
+            </div>
+          )}
           {user ? (
             <div className="flex items-center gap-4">
               <button 
@@ -145,34 +154,34 @@ const Navbar = ({
                 className="flex items-center gap-3 group transition-all"
               >
                 <div className="text-right hidden md:block">
-                  <p className="text-xs font-bold tracking-tight text-slate-800">
+                  <p className="text-xs font-black tracking-tight text-slate-850">
                     {profile?.displayName?.split(' ')[0]} 
-                    <span className="text-blue-600 ml-1 font-extrabold">#{profile?.karma || 0} XP</span>
+                    <span className="text-blue-600 ml-1 font-black">#{profile?.karma || 0} XP</span>
                   </p>
-                  <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{getKarmaTier(profile?.karma || 0)}</p>
+                  <p className="text-[8px] font-extrabold text-slate-400 uppercase tracking-widest mt-0.5">{getKarmaTier(profile?.karma || 0)}</p>
                 </div>
                 <div className="relative">
                   <img 
                     src={user.photoURL || ''} 
-                    className="w-9 h-9 rounded-xl border border-slate-200 shadow-sm transition-transform group-hover:scale-105" 
+                    className="w-10 h-10 rounded-xl border border-slate-200 object-cover shadow-sm transition-transform group-hover:scale-105" 
                     alt="Profile" 
                   />
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border border-white rounded-full"></div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full"></div>
                 </div>
               </button>
               <div className="w-px h-6 bg-slate-200 hidden md:block"></div>
               <button 
                 onClick={logout}
-                className="w-9 h-9 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-xl transition-all border border-slate-100 hover:border-rose-100"
+                className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-xl transition-all border border-slate-100 hover:border-rose-100/60"
                 title="Tizimdan chiqish"
               >
-                <LogOut size={15} />
+                <LogOut size={16} />
               </button>
             </div>
           ) : (
             <button 
               onClick={onLogin || loginWithGoogle}
-              className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-[11px] font-bold hover:bg-black transition-all flex items-center gap-2 active:scale-95 uppercase tracking-widest"
+              className="bg-slate-950 text-white px-5 py-3 rounded-xl text-[10px] font-black hover:bg-black transition-all flex items-center gap-2 active:scale-95 uppercase tracking-widest border border-white/5 shadow-md shadow-slate-950/5"
             >
               Kirish <ArrowRight size={14} />
             </button>
@@ -519,45 +528,44 @@ const MahallaMembers = ({ mahalla, currentUid, onUserClick }: { mahalla: Mahalla
     });
   }, [mahalla.members]);
 
-  if (loading) return <div className="p-4 text-[10px] font-black text-slate-300 uppercase animate-pulse tracking-widest">Yuklanmoqda...</div>;
+  if (loading) return (
+    <div className="flex items-center gap-2 py-1">
+      <div className="w-5 h-5 rounded-full bg-slate-100 animate-pulse border border-slate-200" />
+      <span className="text-[9px] font-black text-slate-350 uppercase tracking-widest animate-pulse">Yuklanmoqda...</span>
+    </div>
+  );
 
   return (
-    <div className="pt-2 pb-4 px-4 space-y-4 border-t border-slate-50/10 mt-2">
-      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Guruh a'zolari • {mahalla.members.length}</p>
-      <div className="space-y-3">
-        {members.map(m => (
-          <div 
-            key={m.uid} 
-            onClick={() => onUserClick?.(m)}
-            className="flex items-center justify-between group/m cursor-pointer hover:bg-slate-50/10 p-2 rounded-2xl transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <img src={m.photoURL} className="w-8 h-8 rounded-xl border border-slate-100 object-cover" alt="" />
-                {m.uid === mahalla.ownerId && (
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-400 rounded-full border-2 border-white flex items-center justify-center">
-                    <ShieldCheck size={8} className="text-white" />
-                  </div>
-                )}
-              </div>
-              <div>
-                <p className={cn("text-[11px] font-bold tracking-tight", m.uid === currentUid ? "text-blue-600" : "text-slate-700")}>
-                  {m.displayName}
-                  {m.uid === currentUid && <span className="ml-1 opacity-50">(Men)</span>}
-                </p>
-                <div className="flex items-center gap-2">
-                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{m.karma} XP</p>
-                </div>
-              </div>
-            </div>
-            {m.karma > 100 && (
-              <div className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center">
-                <Zap size={10} className="text-blue-500" />
+    <div className="flex flex-wrap items-center gap-2">
+      {members.map(m => (
+        <div 
+          key={m.uid} 
+          onClick={() => onUserClick?.(m)}
+          className="inline-flex items-center gap-2 bg-slate-50 hover:bg-slate-100/80 active:scale-[0.98] border border-slate-100 p-1.5 pr-3 rounded-full cursor-pointer transition-all select-none text-left"
+          title={`${m.displayName} - ${m.karma || 0} XP`}
+        >
+          <div className="relative shrink-0">
+            <img 
+              src={m.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${m.displayName}`} 
+              className="w-6 h-6 rounded-full border border-white object-cover shadow-sm" 
+              referrerPolicy="no-referrer"
+              alt="" 
+            />
+            {m.uid === mahalla.ownerId && (
+              <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 rounded-full border border-white flex items-center justify-center" title="Guruh Yaratuvchisi / Oqsoqol">
+                <ShieldCheck size={7} className="text-white" />
               </div>
             )}
           </div>
-        ))}
-      </div>
+          <span className="text-xs font-bold text-slate-700 truncate max-w-[120px]">
+            {m.displayName}
+            {m.uid === currentUid && <span className="ml-1 text-[9px] font-black text-blue-600 uppercase tracking-wide">(Men)</span>}
+          </span>
+          <span className="text-[8px] font-black tracking-wider bg-slate-200/50 text-slate-500 rounded-full px-1.5 py-0.5 uppercase">
+            {m.karma || 0} XP
+          </span>
+        </div>
+      ))}
     </div>
   );
 };
@@ -832,53 +840,62 @@ const RequestCard = (props: RequestCardProps & { onOpenChat?: (r: HelpRequest) =
   };
 
   const urgencyColors = {
-    low: 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20',
-    medium: 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-500/20',
-    high: 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/20'
+    low: 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20',
+    medium: 'bg-indigo-500/10 text-indigo-600 border border-indigo-500/20',
+    high: 'bg-rose-500/10 text-rose-600 border border-rose-500/20'
   };
 
   const statusTags = {
-    open: 'bg-sky-50 text-sky-600 ring-1 ring-sky-500/20',
-    assigned: 'bg-violet-50 text-violet-600 ring-1 ring-violet-500/20',
-    completed: 'bg-slate-900 text-white',
+    open: 'bg-sky-500/10 text-sky-600 border border-sky-500/20',
+    assigned: 'bg-violet-500/10 text-violet-600 border border-violet-500/20',
+    completed: 'bg-slate-950 text-white shadow-sm',
     cancelled: 'bg-slate-100 text-slate-400'
   };
 
   const categoryIcons: Record<string, React.ReactNode> = {
-    errands: <Search size={12} />,
-    repairs: <Zap size={12} />,
-    tutoring: <UserIcon size={12} />,
-    childcare: <Users size={12} />,
-    'elderly care': <Heart size={12} />,
-    other: <Plus size={12} />
+    errands: <Search size={11} className="text-blue-500" />,
+    repairs: <Zap size={11} className="text-amber-500" />,
+    tutoring: <UserIcon size={11} className="text-violet-500" />,
+    childcare: <Users size={11} className="text-emerald-500" />,
+    'elderly care': <Heart size={11} className="text-rose-500" />,
+    other: <Plus size={11} className="text-slate-500" />
+  };
+
+  const categoryLabelsEngToUz: Record<string, string> = {
+    errands: "Yumush",
+    repairs: "Ta'mirlash",
+    tutoring: "Ta'lim",
+    childcare: "Bolalar",
+    'elderly care': "Keksalar",
+    other: "Boshqa"
   };
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      className="group relative bg-white border border-slate-100 rounded-[40px] p-8 hover:shadow-[0_40px_80px_-15px_rgba(0,0,0,0.06)] transition-all flex flex-col h-full overflow-hidden"
+      whileHover={{ y: -6, transition: { duration: 0.25, ease: "easeOut" } }}
+      className="group relative bg-white border border-slate-200/60 rounded-[35px] p-7 shadow-[0_12px_40px_-15px_rgba(15,23,42,0.03),0_1px_3px_rgba(15,23,42,0.01)] hover:shadow-[0_35px_70px_-15px_rgba(15,23,42,0.1)] hover:border-blue-500/30 transition-all duration-300 flex flex-col h-full overflow-hidden"
     >
-      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-50/50 to-transparent -mr-16 -mt-16 rounded-full blur-2xl group-hover:bg-blue-100/50 transition-colors"></div>
+      <div className="absolute top-0 right-0 w-36 h-36 bg-gradient-to-br from-blue-500/10 to-transparent -mr-16 -mt-16 rounded-full blur-2xl group-hover:from-blue-500/20 transition-colors pointer-events-none"></div>
       
-      <div className="flex justify-between items-start mb-8 relative z-10">
-        <div className="flex flex-wrap gap-2">
-          <div className={cn("px-3 py-1 rounded-[12px] text-[10px] font-black uppercase tracking-wider", urgencyColors[request.urgency])}>
-            {request.urgency}
+      <div className="flex justify-between items-center mb-5.5 relative z-10">
+        <div className="flex flex-wrap gap-1.5">
+          <div className={cn("px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider border", urgencyColors[request.urgency])}>
+            {request.urgency === 'high' ? 'Zarur' : request.urgency === 'medium' ? 'O\'rtacha' : 'Past'}
           </div>
-          <div className={cn("px-3 py-1 rounded-[12px] text-[10px] font-black uppercase tracking-wider", statusTags[request.status])}>
-            {request.status}
+          <div className={cn("px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider border", statusTags[request.status])}>
+            {request.status === 'open' ? 'Ochiq' : request.status === 'assigned' ? 'Birlashgan' : request.status === 'completed' ? 'Tugallangan' : 'Bekor qilingan'}
           </div>
-          <div className="px-3 py-1 rounded-[12px] text-[10px] font-black uppercase tracking-wider bg-slate-50 text-slate-400 flex items-center gap-1.5 border border-slate-100">
-            {categoryIcons[request.category] || <Plus size={12} />}
-            {request.category}
+          <div className="px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-slate-50 text-slate-500 flex items-center gap-1.5 border border-slate-100">
+            {categoryIcons[request.category] || <Plus size={11} />}
+            {categoryLabelsEngToUz[request.category] || request.category}
           </div>
         </div>
-        <div className="flex items-center text-[10px] font-black text-slate-300 gap-1.5 uppercase tracking-widest">
-          <Clock size={12} />
-          {formatDistanceToNow(request.createdAt?.toDate() || new Date())}
+        <div className="flex items-center text-[9px] font-black text-slate-400 gap-1.5 uppercase tracking-widest shrink-0 select-none">
+          <Clock size={11} className="text-slate-300" />
+          {formatDistanceToNow(request.createdAt?.toDate() || new Date()) === 'less than a minute' ? 'Hozirgina' : formatDistanceToNow(request.createdAt?.toDate() || new Date())}
         </div>
       </div>
 
@@ -886,58 +903,64 @@ const RequestCard = (props: RequestCardProps & { onOpenChat?: (r: HelpRequest) =
         {requester && (
           <div 
             onClick={() => onUserClick?.(requester)}
-            className="flex items-center gap-3 mb-4 p-2 bg-slate-50/50 hover:bg-blue-50/30 rounded-2xl cursor-pointer transition-all border border-slate-100/50 group/req max-w-fit"
+            className="flex items-center gap-3 mb-5 p-2 bg-slate-50/70 hover:bg-blue-50 border border-slate-100 rounded-2xl cursor-pointer transition-all group/req max-w-fit"
           >
-            <img src={requester.photoURL} className="w-7 h-7 rounded-full object-cover border border-white shadow-sm shrink-0" alt="" />
+            <div className="relative">
+              <img src={requester.photoURL} className="w-8 h-8 rounded-xl object-cover border-2 border-white shadow-sm shrink-0" alt="" />
+              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></div>
+            </div>
             <div className="text-left min-w-0 pr-2">
-              <p className="text-[10px] font-black tracking-tight text-slate-700 uppercase group-hover/req:text-blue-600 transition-colors leading-none">{requester.displayName}</p>
-              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider mt-1 leading-none">{requester.karma || 0} XP • {getKarmaTier(requester.karma || 0)}</p>
+              <p className="text-[10px] font-black tracking-tight text-slate-800 uppercase group-hover/req:text-blue-600 transition-colors leading-none">{requester.displayName}</p>
+              <p className="text-[8px] font-black text-blue-500 uppercase tracking-widest mt-1.5 leading-none">{requester.karma || 0} XP • {getKarmaTier(requester.karma || 0)}</p>
             </div>
           </div>
         )}
-        <h3 className="text-2xl font-display font-black mb-4 leading-[1.1] text-slate-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{request.title}</h3>
-        <p className="text-slate-500 text-sm mb-8 leading-relaxed font-medium line-clamp-3 break-words">{request.description}</p>
+        <h3 className="text-base font-display font-black mb-2.5 leading-snug text-slate-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight line-clamp-2">{request.title}</h3>
+        <p className="text-slate-500 text-xs mb-6 leading-relaxed font-semibold line-clamp-3 break-words pr-2">{request.description}</p>
 
-        <div className="flex flex-wrap gap-3 mb-10">
-          <div className="flex items-center gap-2 text-[10px] font-black bg-slate-50 px-4 py-2 rounded-2xl text-slate-500 uppercase tracking-widest border border-slate-100">
-             <MapPin size={12} className="text-slate-900" />
-             {request.location || 'Local Neighbors'}
+        <div className="flex flex-wrap gap-2.5 mb-6">
+          <div className="flex items-center gap-1.5 text-[9px] font-black bg-slate-50 border border-slate-100 px-3.5 py-2 rounded-2xl text-slate-500 uppercase tracking-wide">
+             <MapPin size={11} className="text-slate-400" />
+             <span className="truncate max-w-[125px]">{request.location || 'Barcha mahallalar'}</span>
           </div>
-          <div className="flex items-center gap-2 text-[10px] font-black bg-slate-50 px-4 py-2 rounded-2xl text-slate-500 uppercase tracking-widest border border-slate-100">
-             {request.type === 'paid' ? <DollarSign size={12} className="text-emerald-600" /> : <Zap size={12} className="text-amber-500" />}
-             {request.type === 'paid' ? `Budget: $${request.budget}` : 'Volunteer Basis'}
+          <div className="flex items-center gap-1.5 text-[9px] font-black bg-slate-50 border border-slate-100 px-3.5 py-2 rounded-2xl text-slate-500 uppercase tracking-wide">
+             {request.type === 'paid' ? <DollarSign size={11} className="text-emerald-500" /> : <Zap size={11} className="text-amber-500 animate-pulse" />}
+             <span className={cn(request.type === 'paid' ? "text-emerald-600 font-bold" : "")}>{request.type === 'paid' ? `${Number(request.budget).toLocaleString()} so'm` : 'Ixtiyoriy yordam'}</span>
           </div>
         </div>
 
         {assigneeProfile && (
           <div 
             onClick={() => onUserClick?.(assigneeProfile)}
-            className="flex items-center gap-3 mb-4 p-3 bg-indigo-50/40 hover:bg-indigo-50/80 rounded-2xl cursor-pointer transition-all border border-indigo-100/50 group/as text-left"
+            className="flex items-center gap-3 mb-5 p-3 bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100/50 rounded-2xl cursor-pointer transition-all group/as text-left"
           >
-            <img src={assigneeProfile.photoURL} className="w-6 h-6 rounded-xl object-cover shrink-0" alt="" />
+            <div className="relative">
+              <img src={assigneeProfile.photoURL} className="w-7 h-7 rounded-xl object-cover shrink-0 border-2 border-white shadow-sm" alt="" />
+              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-indigo-500 border border-white rounded-full"></div>
+            </div>
             <div>
-              <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1">Tanlangan yordamchi</p>
+              <p className="text-[7.5px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1">Qabul qilgan yordamchi</p>
               <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight group-hover/as:text-indigo-600 transition-colors leading-none">{assigneeProfile.displayName}</p>
             </div>
           </div>
         )}
 
-        <div className="pt-8 border-t border-[#F1F5F9] mt-auto flex flex-col gap-3">
+        <div className="pt-5 border-t border-slate-100 mt-auto flex flex-col gap-2.5">
           {(isOwner || isAssignee) && request.status === 'assigned' && onOpenChat && (
             <button 
               onClick={() => onOpenChat(request)}
-              className="w-full py-4 bg-blue-50 text-blue-600 rounded-[20px] font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-blue-100 transition-all font-sans"
+              className="w-full py-4 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-2xl font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer font-sans shadow-sm"
             >
-              <MessageSquare size={14} /> Xabarlarni ko'rish
+              <MessageSquare size={13} /> Kelishuv suhbati
             </button>
           )}
 
           {!isViewOnly && request.status === 'open' && !isOwner && (
             <button 
               onClick={() => onRespond?.(request.id)}
-              className="w-full py-5 bg-slate-900 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-blue-600 transition-all shadow-[0_20px_40px_-10px_rgba(0,0,0,0.2)] active:scale-95"
+              className="w-full py-4.5 bg-slate-950 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-600 transition-all shadow-md shadow-slate-950/5 active:scale-98 cursor-pointer hover:shadow-lg hover:shadow-blue-500/10"
             >
-              Yordam Berish <ArrowRight size={14} />
+              Yordam ko'rsatish <ArrowRight size={13} />
             </button>
           )}
           
@@ -945,20 +968,20 @@ const RequestCard = (props: RequestCardProps & { onOpenChat?: (r: HelpRequest) =
             <button 
               onClick={handleComplete}
               disabled={completing}
-              className="w-full py-5 bg-emerald-500 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-emerald-600 transition-all shadow-[0_20px_40px_-10px_rgba(16,185,129,0.3)] active:scale-95 disabled:opacity-50"
+              className="w-full py-4.5 bg-emerald-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all shadow-md shadow-emerald-500/10 active:scale-98 disabled:opacity-50 cursor-pointer hover:shadow-lg hover:shadow-emerald-500/15"
             >
-              {completing ? 'Tasdiqlash...' : 'Yordam oldim (+Karma)'}
+              {completing ? 'Tasdiqlanyapti...' : 'Yordam qabul qildim (+Karma)'}
             </button>
           )}
 
           {request.status === 'completed' && (
-            <div className="w-full py-5 bg-slate-50 text-slate-400 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 border border-slate-100">
-              <CheckCircle size={14} className="text-emerald-500" /> Bajarildi
+            <div className="w-full py-4 bg-slate-50 text-slate-400 rounded-2xl font-black text-[10px] tracking-wide uppercase flex items-center justify-center gap-2 border border-slate-100 select-none">
+              <CheckCircle size={13} className="text-emerald-500" /> Bajarildi
             </div>
           )}
 
           {isOwner && request.status === 'open' && (
-            <div className="w-full py-5 border-2 border-dashed border-slate-100 text-slate-300 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center">
+            <div className="w-full py-4 border-2 border-dashed border-slate-100 text-slate-350 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center select-none bg-slate-50/20">
               Kutilmoqda...
             </div>
           )}
@@ -1077,7 +1100,19 @@ const InviteMemberModal = ({ mahalla, onClose, showNotification }: { mahalla: Ma
   );
 };
 
-const CreateRequestModal = ({ onClose, mahallas, showNotification }: { onClose: () => void; mahallas: Mahalla[]; showNotification: (msg: string, type?: 'success' | 'error') => void }) => {
+const CreateRequestModal = ({ 
+  onClose, 
+  mahallas, 
+  showNotification,
+  dataSource = 'firebase',
+  onSuccess
+}: { 
+  onClose: () => void; 
+  mahallas: Mahalla[]; 
+  showNotification: (msg: string, type?: 'success' | 'error') => void;
+  dataSource?: 'firebase' | 'pythonanywhere';
+  onSuccess?: () => void;
+}) => {
   const [loading, setLoading] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -1136,28 +1171,45 @@ const CreateRequestModal = ({ onClose, mahallas, showNotification }: { onClose: 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth.currentUser) return;
     setLoading(true);
     try {
       const budgetVal = formData.type === 'paid' ? Number(formData.budget) : undefined;
-      await firebaseService.createRequest({
-        ...formData,
-        mahallaId: formData.mahallaId || undefined,
-        requesterId: auth.currentUser.uid,
-        budget: isNaN(budgetVal as any) ? undefined : budgetVal
-      });
       
-      if (formData.mahallaId && auth.currentUser) {
-        await firebaseService.logEvent(
-          formData.mahallaId, 
-          'request_created', 
-          `yordam uchun yangi so'rov joyladi: "${formData.title}"`,
-          auth.currentUser.uid,
-          auth.currentUser.displayName || 'Neighbor'
+      if (dataSource === 'pythonanywhere') {
+        await apiService.createApplication(
+          formData.title,
+          formData.description,
+          formData.category,
+          budgetVal || 0,
+          formData.type,
+          formData.urgency
         );
+      } else {
+        if (!auth.currentUser) {
+          showNotification('Iltimos, tizimga kiring.', 'error');
+          setLoading(false);
+          return;
+        }
+        await firebaseService.createRequest({
+          ...formData,
+          mahallaId: formData.mahallaId || undefined,
+          requesterId: auth.currentUser.uid,
+          budget: isNaN(budgetVal as any) ? undefined : budgetVal
+        });
+        
+        if (formData.mahallaId && auth.currentUser) {
+          await firebaseService.logEvent(
+            formData.mahallaId, 
+            'request_created', 
+            `yordam uchun yangi so'rov joyladi: "${formData.title}"`,
+            auth.currentUser.uid,
+            auth.currentUser.displayName || 'Neighbor'
+          );
+        }
       }
 
       showNotification('Muvaffaqiyatli! So\'rovingiz e\'lon qilindi.');
+      onSuccess?.();
       onClose();
     } catch (err) {
       console.error(err);
@@ -1402,7 +1454,7 @@ const CreateRequestModal = ({ onClose, mahallas, showNotification }: { onClose: 
               </div>
             </div>
             <div className="space-y-2">
-               <label className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Budjet ($)</label>
+               <label className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Budjet (so'm)</label>
                <input 
                  type="number"
                  placeholder="0"
@@ -1500,8 +1552,31 @@ const ConfirmModal = ({
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(() => {
+    try {
+      const cached = localStorage.getItem('civicbridge_profile');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
   const [requests, setRequests] = useState<HelpRequest[]>([]);
+  const [dataSource, setDataSource] = useState<'firebase' | 'pythonanywhere'>('firebase');
+  const [apiRequests, setApiRequests] = useState<HelpRequest[]>([]);
+  const [isApiLoading, setIsApiLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [myRequests, setMyRequests] = useState<HelpRequest[]>([]);
   const [mahallas, setMahallas] = useState<Mahalla[]>([]);
   const [topUsers, setTopUsers] = useState<UserProfile[]>([]);
@@ -1542,6 +1617,7 @@ export default function App() {
   const [proposalCategory, setProposalCategory] = useState('Barcha turlar');
   const [mapViewActive, setMapViewActive] = useState(false);
   const [activeMapPin, setActiveMapPin] = useState<HelpRequest | null>(null);
+  const [headerMembers, setHeaderMembers] = useState<UserProfile[]>([]);
 
   // Proposal Creation states
   const [isCreatingInline, setIsCreatingInline] = useState(false);
@@ -1549,7 +1625,7 @@ export default function App() {
   const [newPropDesc, setNewPropDesc] = useState('');
   const [newPropCat, setNewPropCat] = useState<'ecology' | 'infrastructure' | 'events' | 'charity' | 'other'>('infrastructure');
 
-  const filteredRequests = requests.filter(req => {
+  const filteredRequests = (dataSource === 'pythonanywhere' ? apiRequests : requests).filter(req => {
     const matchesSearch = req.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          req.description.toLowerCase().includes(searchQuery.toLowerCase());
     const catMap: Record<string, string> = {
@@ -1568,7 +1644,10 @@ export default function App() {
 
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ message, type });
-    setTimeout(() => setNotification(null), 4000);
+    const duration = type === 'error' ? 8000 : 4000;
+    setTimeout(() => {
+      setNotification((prev) => (prev?.message === message ? null : prev));
+    }, duration);
   };
 
   const copyToClipboard = (mahallaId: string) => {
@@ -1583,10 +1662,19 @@ export default function App() {
     } catch (error: any) {
       console.error("Login failed:", error);
       if (error?.code === 'auth/unauthorized-domain' || error?.message?.includes('auth/unauthorized-domain')) {
-        showNotification(
-          "Ushbu Vercel domeningiz Firebase loyihangizda ruxsat etilgan domenlar (Authorized Domains) ro'yxatiga qo'shilmagan! Iltimos, Firebase Console -> Authentication -> Settings sahifasidan ushbu domenni ruxsat etilgan domenlarga qo'shing.", 
-          'error'
-        );
+        const host = window.location.hostname;
+        const isAiStudio = host.includes('run.app') || host.includes('aistudio');
+        if (isAiStudio) {
+          showNotification(
+            `Google AI Studio preview domeni (${host}) Firebase-da ruxsat etilgan domenlar ro'yxatiga qo'shilmagan! Iltimos, Firebase Console -> Authentication -> Settings bo'limidan ushbu domenni (Authorized Domains) ro'yxatiga qo'shing.`,
+            'error'
+          );
+        } else {
+          showNotification(
+            `Ushbu domeningiz (${host}) Firebase loyihangizda ruxsat etilgan domenlar (Authorized Domains) ro'yxatiga qo'shilmagan! Iltimos, Firebase Console -> Authentication -> Settings sahifasidan ushbu domenni ruxsat etilgan domenlarga qo'shing.`, 
+            'error'
+          );
+        }
       } else if (error?.code === 'auth/popup-blocked') {
         showNotification(
           "Brauzer kutilmaganda login oynasini blokladi (Popup blocked). Iltimos, brauzer sozlamalaridan xabarlarga va popupga ruxsat bering.", 
@@ -1699,6 +1787,13 @@ export default function App() {
         // Real-time profile subscription
         unsubProfile = firebaseService.subscribeToUserProfile(u.uid, (p) => {
           setProfile(p);
+          try {
+            if (p) {
+              localStorage.setItem('civicbridge_profile', JSON.stringify(p));
+            }
+          } catch (e) {
+            console.error(e);
+          }
         });
 
         firebaseService.ensureUserProfile(u).then(() => {
@@ -1720,6 +1815,9 @@ export default function App() {
         });
       } else {
         setProfile(null);
+        try {
+          localStorage.removeItem('civicbridge_profile');
+        } catch {}
         unsubProfile?.();
         setIsLoaded(true);
       }
@@ -1732,6 +1830,30 @@ export default function App() {
     };
   }, []);
 
+  const membersKey = activeMahalla?.members?.join(',');
+  useEffect(() => {
+    if (activeMahalla) {
+      firebaseService.getUsersByUids(activeMahalla.members).then(data => {
+        if (data) setHeaderMembers(data);
+      }).catch(console.error);
+    } else {
+      setHeaderMembers([]);
+    }
+  }, [activeMahalla?.id, membersKey]);
+
+  useEffect(() => {
+    if (activeMahalla) {
+      const updated = mahallas.find(m => m.id === activeMahalla.id);
+      if (updated) {
+        if (JSON.stringify(updated) !== JSON.stringify(activeMahalla)) {
+          setActiveMahalla(updated);
+        }
+      } else {
+        setActiveMahalla(null);
+      }
+    }
+  }, [mahallas]);
+
   useEffect(() => {
     if (!user) return;
     
@@ -1743,7 +1865,12 @@ export default function App() {
     }
 
     const unsubMine = firebaseService.subscribeToUserRequests(user.uid, setMyRequests);
-    const unsubMahallas = firebaseService.subscribeToUserMahallas(user.uid, setMahallas);
+    const unsubMahallas = firebaseService.subscribeToUserMahallas(user.uid, (list) => {
+      setMahallas(list);
+      if (activeMahalla && !list.some(m => m.id === activeMahalla.id)) {
+        setActiveMahalla(null);
+      }
+    });
     const unsubProposals = firebaseService.subscribeToAllProposals(setProposals);
 
     return () => {
@@ -1753,6 +1880,25 @@ export default function App() {
       unsubProposals();
     };
   }, [user, activeMahalla]);
+
+  const fetchApiRequests = async () => {
+    setIsApiLoading(true);
+    setApiError(null);
+    try {
+      const data = await apiService.getApplications();
+      setApiRequests(data);
+    } catch (e: any) {
+      setApiError(e?.message || "Tashqi API-dan ma'lumotlarni yuklab bo'lmadi");
+    } finally {
+      setIsApiLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (dataSource === 'pythonanywhere') {
+      fetchApiRequests();
+    }
+  }, [dataSource]);
 
   useEffect(() => {
     firebaseService.getTopUsers(5).then(users => {
@@ -1913,12 +2059,13 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900 overflow-x-hidden">
-      <Navbar user={user} profile={profile} onProfileClick={() => setIsProfileModalOpen(true)} resetView={() => { setActiveMahalla(null); setMainTab('home'); }} mainTab={mainTab} setMainTab={setMainTab} onLogin={handleGoogleLogin} />
-
-      <main className="pt-28 pb-32 px-4 max-w-7xl mx-auto">
-        {!user ? (
-          <div className="max-w-6xl mx-auto text-center py-16 relative">
+    <div className="min-h-screen bg-slate-50/50 text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900 overflow-x-hidden">
+      {!user ? (
+        <>
+          <Navbar user={user} profile={profile} onProfileClick={() => setIsProfileModalOpen(true)} resetView={() => { setActiveMahalla(null); setMainTab('home'); }} mainTab={mainTab} setMainTab={setMainTab} onLogin={handleGoogleLogin} isOnline={isOnline} />
+          
+          <main className="pt-28 pb-32 px-4 max-w-7xl mx-auto">
+            <div className="max-w-6xl mx-auto text-center py-16 relative">
             {/* Soft Glowing Backdrops */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-sky-200/20 rounded-full blur-[120px] -z-10 pointer-events-none"></div>
             <div className="absolute top-[40%] right-0 w-[400px] h-[400px] bg-blue-100/25 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
@@ -1999,9 +2146,9 @@ export default function App() {
             </div>
 
             {/* Bottom Elegant Promotion */}
-            <section className="mt-32 max-w-5xl mx-auto bg-slate-900 text-white p-12 md:p-16 rounded-[32px] text-center relative overflow-hidden shadow-2xl">
-               <div className="absolute top-0 right-0 w-80 h-80 bg-blue-600/10 rounded-full blur-[80px] -mr-32 -mt-32"></div>
-               <div className="absolute bottom-0 left-0 w-80 h-80 bg-indigo-600/10 rounded-full blur-[80px] -ml-32 -mb-32"></div>
+            <section className="mt-32 max-w-5xl mx-auto bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 text-white p-12 md:p-16 rounded-[48px] text-center relative overflow-hidden shadow-[0_45px_90px_-20px_rgba(0,0,0,0.4)]">
+               <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/15 rounded-full blur-[100px] -mr-32 -mt-32"></div>
+               <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-600/15 rounded-full blur-[100px] -ml-32 -mb-32"></div>
                
                <div className="relative z-10">
                  <h2 className="text-3xl md:text-5xl font-display font-extrabold mb-6 tracking-tight leading-none">Birlashgan Jamoa — <span className="text-blue-400 block sm:inline">Kuchli Mahalla</span></h2>
@@ -2014,8 +2161,147 @@ export default function App() {
                </div>
             </section>
           </div>
-        ) : (
-          <div className="space-y-12">
+        </main>
+        </>
+      ) : (
+        <div className="flex min-h-screen">
+          {/* DESKTOP SIDEBAR */}
+          <aside className="hidden lg:flex flex-col w-[280px] bg-slate-900 border-r border-slate-800 text-slate-200 shrink-0 fixed top-0 bottom-0 left-0 z-40 justify-between p-6">
+            <div className="space-y-8">
+              {/* Logo area */}
+              <div 
+                onClick={() => { setActiveMahalla(null); setMainTab('home'); }}
+                className="flex items-center gap-3 cursor-pointer group"
+              >
+                <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg overflow-hidden relative">
+                   <div className="absolute inset-0 bg-blue-600 opacity-0 group-hover:opacity-10 transition-opacity"></div>
+                  <Heart size={15} fill="white" className="relative z-10 transition-transform group-hover:scale-110" />
+                </div>
+                <div>
+                  <span className="font-display font-black text-base tracking-tight block leading-none text-white">CivicBridge</span>
+                  <span className="text-[7.5px] text-blue-400 font-extrabold uppercase tracking-[0.2em] mt-1 block">Raqamli Ko'mak</span>
+                </div>
+              </div>
+
+              {/* Navigation Menu */}
+              <nav className="space-y-1.5">
+                {[
+                  { id: 'home', label: 'Tushuntirish', icon: <Compass size={16} /> },
+                  { id: 'feed', label: 'Yordam e\'lonlari', icon: <Heart size={16} /> },
+                  { id: 'forum', label: 'Forum', icon: <MessageSquare size={16} /> },
+                  { id: 'mahallas', label: 'Mahallalar', icon: <Users size={16} /> },
+                  { id: 'rewards', label: 'Reyting & Sovrin', icon: <Trophy size={16} /> },
+                  { id: 'ai', label: 'AI Ko\'makchi', icon: <Sparkles size={16} className="text-amber-400 animate-pulse" /> },
+                ].map(tab => {
+                  const isActive = mainTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setMainTab(tab.id as any)}
+                      className={cn(
+                        "w-full px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center gap-3 relative transition-all active:scale-98 select-none text-left",
+                        isActive 
+                          ? "text-white bg-white/10 shadow-[0_4px_12px_rgba(255,255,255,0.02)] border border-white/5" 
+                          : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                      )}
+                    >
+                      {tab.icon}
+                      <span className="relative z-10">{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* Profile Card & Logout */}
+            <div className="space-y-4 pt-4 border-t border-slate-800/60">
+              <button 
+                onClick={() => setIsProfileModalOpen(true)}
+                className="w-full flex items-center gap-3 p-1.5 hover:bg-white/5 rounded-xl transition-all text-left"
+              >
+                <div className="relative">
+                  <img 
+                    src={user.photoURL || ''} 
+                    className="w-9 h-9 rounded-xl border border-slate-700 object-cover shadow-sm" 
+                    alt="Profile" 
+                  />
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border border-slate-900 rounded-full"></div>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black tracking-tight text-white truncate">
+                    {profile?.displayName?.split(' ')[0] || user.displayName?.split(' ')[0]}
+                  </p>
+                  <p className="text-[9px] font-bold text-blue-400 uppercase tracking-widest mt-0.5">
+                    {profile?.karma || 0} XP • {getKarmaTier(profile?.karma || 0)}
+                  </p>
+                </div>
+              </button>
+
+              <button 
+                onClick={logout}
+                className="w-full py-2.5 bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/20 text-rose-400 rounded-xl font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <LogOut size={14} /> Chiqish
+              </button>
+            </div>
+          </aside>
+
+          {/* DESKTOP CLIENT BODY */}
+          <div className="flex-1 lg:pl-[280px] min-h-screen flex flex-col">
+            {/* Header Area */}
+            <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-md border-b border-slate-200/40 px-6 py-4 flex justify-between items-center shadow-sm">
+              <div className="flex items-center gap-3">
+                {/* Mobile hamburger logo */}
+                <div 
+                  onClick={() => { setActiveMahalla(null); setMainTab('home'); }}
+                  className="lg:hidden flex items-center gap-2 cursor-pointer"
+                >
+                  <div className="w-8 h-8 bg-slate-950 rounded-lg flex items-center justify-center text-white">
+                    <Heart size={13} fill="white" />
+                  </div>
+                  <span className="font-display font-extrabold text-sm tracking-tight text-slate-950">CivicBridge</span>
+                </div>
+
+                <div className="hidden lg:flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    {activeMahalla ? `Mahalla: ${activeMahalla.name}` : 'Barcha mahallalar faol'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Right Side Header Utilities */}
+              <div className="flex items-center gap-3">
+                {!isOnline && (
+                  <div className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-605 text-amber-605 block text-amber-650 text-amber-600 px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider animate-pulse">
+                    <span>Oflayn</span>
+                  </div>
+                )}
+                
+                {/* Display karma stat badge */}
+                <div 
+                  onClick={() => setIsProfileModalOpen(true)}
+                  className="bg-slate-50 border border-slate-200/50 hover:bg-slate-100 px-3.5 py-1.5 rounded-xl flex items-center gap-2 cursor-pointer transition-colors"
+                >
+                  <Trophy size={11} className="text-amber-500" />
+                  <span className="text-[9px] font-black text-slate-600 uppercase tracking-wide">
+                    {profile?.karma || 0} XP • {getKarmaTier(profile?.karma || 0)}
+                  </span>
+                </div>
+
+                <button 
+                  onClick={logout}
+                  className="w-8 h-8 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-lg transition-all border border-slate-100 hover:border-rose-100/60 lg:hidden"
+                  title="Tizimdan chiqish"
+                >
+                  <LogOut size={14} />
+                </button>
+              </div>
+            </header>
+
+            {/* MAIN CONTAINER FOR LOGGED IN VIEW */}
+            <div className="flex-1 p-5 md:p-8 max-w-6xl w-full mx-auto pb-32">
+              <div className="space-y-12">
             
 
             {/* TAB 1: HOME */}
@@ -2059,37 +2345,48 @@ export default function App() {
                 </div>
 
                 {/* How it works grid */}
-                <div className="space-y-5">
-                  <h2 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                    <span>🎯</span> Tizim qanday amallar bilan ishlaydi?
+                <div className="space-y-6 text-left">
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
+                    <span className="p-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm">⚡</span> Tizim qanday amallar bilan ishlaydi?
                   </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[
                       {
                         step: '01',
                         title: 'E\'lon joylashtirish',
-                        desc: 'Bozorlik, transport, ta\'mirlash, bolalar parvarishi yoki ta\'lim kabi ehtiyojlar uchun bepul yoki ruxsatli pullik e\'lon berasiz.'
+                        desc: 'Bozorlik, transport, ta\'mirlash, bolalar parvarishi yoki ta\'lim kabi ehtiyojlar uchun bepul yoki ruxsatli pullik e\'lon berasiz.',
+                        gradient: 'from-blue-500 to-indigo-500'
                       },
                       {
                         step: '02',
                         title: 'Yordamni qabul qilish',
-                        desc: 'Istagan odam ro\'yxatdan birini tanlab, yordam berish majburiyatini oladi va shaxsiy xavfsiz chatda suhbatlashadi.'
+                        desc: 'Istagan odam ro\'yxatdan birini tanlab, yordam berish majburiyatini oladi va shaxsiy xavfsiz chatda suhbatlashadi.',
+                        gradient: 'from-amber-400 to-orange-500'
                       },
                       {
                         step: '03',
                         title: 'Yakunlash va tasdiqlash',
-                        desc: 'Yordam berilgach, e\'lon beruvchi tizimda "Yordam oldim" tugmasini bosib vazifani yakunlaydi. Sizga amaliy ball qo\'shiladi.'
+                        desc: 'Yordam berilgach, e\'lon beruvchi tizimda "Yordam oldim" tugmasini bosib vazifani yakunlaydi. Sizga amaliy ball qo\'shiladi.',
+                        gradient: 'from-emerald-400 to-teal-500'
                       },
                       {
                         step: '04',
                         title: '5,000,000 so\'m mukofot',
-                        desc: 'Ishonch asosida 1,000 Karma XP to\'plagan har bir foydalanuvchimizga rag\'batlantiruvchi 5 mln so\'m pul mukofotini taqdim etamiz.'
+                        desc: 'Ishonch asosida 1,000 Karma XP to\'plagan har bir foydalanuvchimizga rag\'batlantiruvchi 5 mln so\'m pul mukofotini taqdim etamiz.',
+                        gradient: 'from-purple-500 to-pink-500'
                       }
                     ].map((step, i) => (
-                      <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group hover:-translate-y-0.5 transition duration-300">
-                        <span className="absolute right-4 top-4 text-3xl font-display font-extrabold text-slate-100 group-hover:text-blue-50 transition-colors leading-none">{step.step}</span>
-                        <h3 className="text-sm font-bold text-slate-900 mb-2 mt-2 relative z-10">{step.title}</h3>
-                        <p className="text-slate-500 text-xs leading-relaxed relative z-10">{step.desc}</p>
+                      <div key={i} className="bg-white p-7.5 rounded-[30px] border border-slate-200/50 shadow-[0_10px_35px_-10px_rgba(15,23,42,0.02)] relative overflow-hidden group hover:shadow-[0_25px_60px_-15px_rgba(15,23,42,0.06)] hover:border-blue-500/20 hover:-translate-y-1.5 transition-all duration-300">
+                        {/* Glow decorative effect */}
+                        <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${step.gradient} opacity-0 group-hover:opacity-10 rounded-full blur-2xl -mr-8 -mt-8 transition-opacity duration-300 pointer-events-none`}></div>
+                        
+                        <div className="flex justify-between items-start mb-6">
+                          <span className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${step.gradient} text-white font-display font-black text-xs flex items-center justify-center shadow-md relative z-10`}>
+                            {step.step}
+                          </span>
+                        </div>
+                        <h3 className="text-sm font-black text-slate-905 text-slate-900 mb-2 mt-2 relative z-10 uppercase tracking-tight leading-tight">{step.title}</h3>
+                        <p className="text-slate-500 text-xs leading-relaxed relative z-10 font-semibold">{step.desc}</p>
                       </div>
                     ))}
                   </div>
@@ -2097,7 +2394,7 @@ export default function App() {
 
                 {/* Anti-cheat and trust information */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="bg-white border border-slate-100 rounded-2xl p-6 md:p-8 text-left shadow-sm">
+                  <div className="bg-white border border-slate-200/40 rounded-[32px] p-7 md:p-9 text-left shadow-[0_8px_30px_rgba(15,23,42,0.03)] hover:shadow-[0_25px_60px_-15px_rgba(15,23,42,0.08)] transition-all duration-300">
                     <div className="flex items-center gap-2.5 text-blue-700 mb-5 font-bold">
                       <ShieldCheck size={20} />
                       <h3 className="text-base font-bold">Halollik va ishonch kafolati</h3>
@@ -2122,8 +2419,8 @@ export default function App() {
                   </div>
 
                   {/* Quest Highlight Card */}
-                  <div className="bg-slate-900 border border-slate-800 text-white rounded-2xl p-6 md:p-8 relative overflow-hidden flex flex-col justify-between shadow-xl">
-                    <div className="absolute top-0 right-0 w-52 h-52 bg-indigo-505/15 rounded-full blur-[60px]"></div>
+                  <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 border border-slate-800/80 text-white rounded-[32px] p-7 md:p-9 relative overflow-hidden flex flex-col justify-between shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_60px_-15px_rgba(49,46,129,0.2)] transition-all duration-300 group">
+                    <div className="absolute top-0 right-0 w-52 h-52 bg-indigo-500/15 rounded-full blur-[60px] pointer-events-none group-hover:bg-indigo-500/25 transition-colors"></div>
                     <div>
                       <div className="flex items-center gap-1.5 text-amber-400 mb-3">
                         <Trophy size={16} />
@@ -2183,6 +2480,44 @@ export default function App() {
                      >
                        Faol Vazifalarim (My Activity)
                      </button>
+                  </div>
+                </div>
+
+                {/* Connection API Selector */}
+                <div className="bg-slate-50 border border-slate-200/60 rounded-[28px] p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-left">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></div>
+                    <div>
+                      <p className="text-xs font-black tracking-tight uppercase text-slate-800 flex items-center gap-1.5 leading-none">
+                        Tizim integratsiyasi: <span className="text-emerald-600 font-extrabold uppercase">Faol ulanish (Connected)</span>
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-medium mt-1">PythonAnywhere hamjamiyat API xizmatiga muvaffaqiyatli ulangan (applicationtest.pythonanywhere.com)</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex bg-slate-200/50 p-1 rounded-2xl shrink-0 gap-1 border border-slate-200">
+                    <button
+                      onClick={() => setDataSource('firebase')}
+                      className={cn(
+                        "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
+                        dataSource === 'firebase' 
+                          ? "bg-white text-slate-900 shadow-sm font-black" 
+                          : "text-slate-500 hover:text-slate-800"
+                      )}
+                    >
+                      Ichki Tarmoq (Firebase)
+                    </button>
+                    <button
+                      onClick={() => setDataSource('pythonanywhere')}
+                      className={cn(
+                        "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5",
+                        dataSource === 'pythonanywhere' 
+                          ? "bg-slate-950 text-white shadow-sm font-black" 
+                          : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                      )}
+                    >
+                      <Globe size={11} /> Tashqi API (PythonAnywhere)
+                    </button>
                   </div>
                 </div>
 
@@ -2505,7 +2840,26 @@ export default function App() {
                           /* Standard Cards Grid list */
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <AnimatePresence mode='popLayout'>
-                              {filteredRequests.length > 0 ? (
+                              {isApiLoading ? (
+                                <div className="col-span-full py-20 text-center">
+                                  <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                                  <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Tashqi API ma'lumotlari yuklanmoqda...</p>
+                                </div>
+                              ) : apiError && dataSource === 'pythonanywhere' ? (
+                                <div className="col-span-full py-16 text-center border-2 border-dashed border-red-100 rounded-[40px] bg-red-50/10">
+                                  <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <AlertTriangle size={20} />
+                                  </div>
+                                  <p className="text-red-600 font-display font-black uppercase text-[10px] tracking-wider mb-2">Yuklashda xato yuz berdi</p>
+                                  <p className="text-slate-400 text-xs max-w-xs mx-auto mb-5 font-semibold">{apiError}</p>
+                                  <button 
+                                    onClick={fetchApiRequests} 
+                                    className="px-5 py-2.5 bg-slate-950 text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-slate-800 transition-all active:scale-95"
+                                  >
+                                    Qayta urinib ko'rish
+                                  </button>
+                                </div>
+                              ) : filteredRequests.length > 0 ? (
                                 filteredRequests.map((req: HelpRequest) => (
                                   <RequestCard 
                                     key={req.id} 
@@ -2627,25 +2981,53 @@ export default function App() {
                     {activeMahalla ? (
                       <div className="space-y-8">
                         {/* Selected Mahalla Header Card */}
-                        <div className="bg-white border border-slate-100 rounded-[40px] p-8 md:p-10 shadow-sm relative overflow-hidden">
+                        <div className="bg-white border border-slate-100 rounded-[32px] p-6 md:p-8 shadow-sm relative overflow-hidden text-left">
                           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl"></div>
-                          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                          
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
                             <div>
-                              <div className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-600 px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider mb-4">
-                                <Users size={12} /> JAMOAT GURUHI
+                              <div className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-100/50 text-blue-600 px-3.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider mb-3">
+                                <Users size={10} /> JAMOAT GURUHI
                               </div>
-                              <h1 className="text-3xl md:text-4xl font-display font-black uppercase tracking-tight text-slate-900 leading-none">
+                              <h1 className="text-2xl md:text-3xl font-display font-black uppercase tracking-tight text-slate-900 leading-tight">
                                 {activeMahalla.name}
                               </h1>
-                              <p className="text-slate-500 text-sm mt-3 font-medium leading-relaxed max-w-xl">
+                              <p className="text-slate-500 text-xs mt-2 font-medium leading-relaxed max-w-xl">
                                 {activeMahalla.description}
                               </p>
+                              
+                              {/* Stacked members overlay inside header to resolve layout empty space */}
+                              <div className="flex items-center gap-3 mt-5 flex-wrap">
+                                {headerMembers.length > 0 && (
+                                  <div className="flex -space-x-2.5 overflow-hidden">
+                                    {headerMembers.slice(0, 5).map((m, idx) => (
+                                      <img
+                                        key={m.uid || idx}
+                                        src={m.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${m.displayName}`}
+                                        alt={m.displayName}
+                                        className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover cursor-pointer hover:scale-105 transition-all"
+                                        onClick={() => setViewingProfile(m)}
+                                        title={m.displayName}
+                                        referrerPolicy="no-referrer"
+                                      />
+                                    ))}
+                                    {activeMahalla.members.length > 5 && (
+                                      <div className="flex items-center justify-center h-8 w-8 rounded-full bg-slate-100 ring-2 ring-white text-[10px] font-black text-slate-500">
+                                        +{activeMahalla.members.length - 5}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                  {activeMahalla.members.length} ta jamoa a'zosi
+                                </p>
+                              </div>
                             </div>
 
-                            <div className="flex items-center gap-3 shrink-0">
+                            <div className="flex items-center gap-2.5 shrink-0">
                               <button 
                                 onClick={() => copyToClipboard(activeMahalla.id)}
-                                className="px-5 py-3.5 bg-slate-950 text-white hover:bg-black rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-sm"
+                                className="px-4.5 py-3 bg-slate-900 text-white hover:bg-black rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-sm"
                               >
                                 <Share2 size={12} /> Taklif Havolasi
                               </button>
@@ -2653,29 +3035,21 @@ export default function App() {
                               {activeMahalla.ownerId === user?.uid ? (
                                 <button 
                                   onClick={() => handleDeleteMahalla(activeMahalla.id)}
-                                  className="w-12 h-12 flex items-center justify-center bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl transition-all border border-red-100/50"
+                                  className="px-5 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-md shadow-red-600/10 hover:scale-[1.02] active:scale-95"
                                   title="Guruhni o'chirish"
                                 >
-                                  <Trash2 size={16} />
+                                  <Trash2 size={12} /> Guruhni O'chirish
                                 </button>
                               ) : (
                                 <button 
                                   onClick={() => handleLeaveMahalla(activeMahalla.id)}
-                                  className="w-12 h-12 flex items-center justify-center bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl transition-all border border-red-100/50"
+                                  className="px-5 py-3 bg-red-100 hover:bg-red-200 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95"
                                   title="Guruhdan chiqish"
                                 >
-                                  <LogOut size={16} />
+                                  <LogOut size={12} /> Guruhdan Chiqish
                                 </button>
                               )}
                             </div>
-                          </div>
-
-                          <div className="h-px bg-slate-100 my-8"></div>
-                          
-                          {/* Active Members inline */}
-                          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Guruh a'zolari:</span>
-                            <MahallaMembers mahalla={activeMahalla} currentUid={user?.uid} onUserClick={setViewingProfile} />
                           </div>
                         </div>
 
@@ -2727,9 +3101,11 @@ export default function App() {
                 className="space-y-8"
               >
                 {/* Intro Headers */}
-                <div>
-                  <h1 className="text-3xl font-display font-black text-slate-900 uppercase tracking-tight">🏆 Global Reyting va Sovrin</h1>
-                  <p className="text-xs text-slate-400 mt-1 font-medium">Barcha o'zaro ishonch ko'magi tizimi foydalanuvchilarining global natijalari va quest progressi.</p>
+                <div className="text-left">
+                  <h1 className="text-3xl font-display font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
+                    <span className="p-2.5 bg-amber-500/10 rounded-2xl text-amber-500 inline-block"><Trophy size={24} /></span> Global Reyting va Sovrinlar
+                  </h1>
+                  <p className="text-xs text-slate-400 mt-2 font-medium">Barcha o'zaro ishonch ko'magi tizimi foydalanuvchilarining global natijalari va jamoatchilik quest progressi.</p>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -2737,37 +3113,38 @@ export default function App() {
                   <div className="lg:col-span-2 space-y-8">
                     {/* Big Quest progression */}
                     {profile && (
-                      <div className="p-10 bg-slate-900 rounded-[48px] text-white premium-shadow relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/20 rounded-full blur-[100px]"></div>
+                      <div className="p-8 md:p-11 bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 rounded-[40px] text-white shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] border border-slate-800 relative overflow-hidden text-left">
+                        <div className="absolute top-0 right-0 w-[450px] h-[450px] bg-blue-600/15 rounded-full blur-[110px] -mr-32 -mt-32"></div>
+                        <div className="absolute bottom-0 left-0 w-72 h-72 bg-emerald-500/5 rounded-full blur-[90px] -ml-32 -mb-32"></div>
+                        
                         <div className="relative z-10">
-                          <div className="flex items-center gap-2 mb-6">
-                            <Zap size={20} className="text-yellow-400 fill-yellow-400 animate-pulse" />
-                            <span className="text-[11px] font-black uppercase tracking-[0.25em] text-blue-400">FAOL YORDAMCHI QUEST</span>
+                          <div className="inline-flex items-center gap-2 bg-blue-600/20 border border-blue-500/30 px-3.5 py-1.5 rounded-2xl text-[9px] mb-6 font-black uppercase tracking-[0.2em] text-blue-400">
+                            <Zap size={13} className="text-yellow-400 fill-yellow-400 animate-pulse" /> FAOL YORDAMCHI QUEST
                           </div>
                           
-                          <h2 className="text-5xl md:text-7xl font-display font-black tracking-tighter mb-4 leading-none text-white">5,000,000 UZS</h2>
-                          <p className="text-slate-400 font-medium text-base mb-10 max-w-xl leading-relaxed">
-                            1000 Karma XP to'plagan har bir verified foydalanuvchiga mahalladagi faolligi uchun mukofot beriladi.
+                          <h2 className="text-5xl md:text-7xl font-display font-black tracking-tighter mb-4 leading-none text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-blue-200">5,000,000 UZS</h2>
+                          <p className="text-slate-350 font-medium text-sm md:text-base mb-10 max-w-xl leading-relaxed">
+                            1000 Karma XP to'plagan har bir tasdiqlangan foydalanuvchiga mahallada ko'rsatgan faolligi uchun amaliy rag'batlantiruvchi yirik pul mukofoti beriladi.
                           </p>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end pt-6 border-t border-white/5">
                             <div>
-                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 font-black">Joriy to'plangan Karma</p>
+                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Joriy to'plangan Karma XP</p>
                               <div className="flex items-baseline gap-2">
                                 <span className="text-5xl font-display font-black text-white">{profile.karma || 0}</span>
                                 <span className="text-lg font-bold text-slate-500">/ 1000 XP</span>
                               </div>
                             </div>
-                            <div className="space-y-2">
+                            <div className="space-y-3.5">
                               <div className="flex justify-between text-xs font-black uppercase tracking-wider">
-                                <span className="text-slate-505">QUEST PROGRESS</span>
+                                <span className="text-slate-400">QUEST PROGRESS</span>
                                 <span className="text-blue-400">{Math.round(Math.min(((profile.karma || 0) / 1000) * 100, 100))}%</span>
                               </div>
-                              <div className="h-4 bg-slate-800 rounded-full p-[3px] border border-slate-700">
+                              <div className="h-4 bg-slate-800/80 rounded-full p-[3px] border border-slate-700/60">
                                 <motion.div 
                                   initial={{ width: 0 }}
                                   animate={{ width: `${Math.min(((profile.karma || 0) / 1000) * 100, 100)}%` }}
-                                  className="h-full bg-gradient-to-r from-blue-600 via-blue-400 to-indigo-600 rounded-full"
+                                  className="h-full bg-gradient-to-r from-blue-600 via-sky-400 to-emerald-500 rounded-full shadow-[0_0_12px_rgba(59,130,246,0.5)]"
                                 />
                               </div>
                             </div>
@@ -2777,69 +3154,82 @@ export default function App() {
                     )}
 
                     {/* Anti-cheat safeguard rules info */}
-                    <div className="bg-white border border-slate-100 rounded-[40px] p-8 md:p-10 shadow-sm space-y-6 text-left">
+                    <div className="bg-white border border-slate-200/50 rounded-[40px] p-8 md:p-10 shadow-[0_12px_40px_-15px_rgba(15,23,42,0.02)] space-y-6 text-left">
                       <div className="flex items-center gap-3 text-slate-950 mb-2 font-black uppercase tracking-tight">
-                        <ShieldAlert size={26} className="text-red-500 animate-bounce" />
-                        <h3 className="text-lg">Adolat va Ishonch Protokollari</h3>
+                        <div className="w-11 h-11 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500 shrink-0">
+                          <ShieldAlert size={20} className="animate-pulse" />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-black leading-none">Adolat va Ishonch Protokollari</h3>
+                          <p className="text-[10px] text-slate-400 mt-1 lowercase tracking-wide font-medium">real-time xavfsizlik va xalqaro hamjamiyat standardlari</p>
+                        </div>
                       </div>
                       
                       <p className="text-slate-600 text-sm leading-relaxed font-semibold">
-                        Sayt mukofot tizimi haqiqiy va ijtimoiy yordamni amalga oshiradigan qo'shnilarimizga taqsimlanishini ta'minlash maqsadida xavfsizlik audit parametrlari avtomatik tarzda ishlaydi:
+                        Sayt mukofot tizimi faqatgina samimiy va haqiqiy ijtimoiy yordamni amalga oshiradigan qo'shnilarimizga toza taqsimlanishini ta'minlash maqsadida quyidagi qoidalar joriy etilgan:
                       </p>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-rose-600 block mb-2">Erkin yordam</span>
-                          <p className="text-xs text-slate-500 leading-relaxed font-semibold">Hech qanday kunlik limit yoki cheklovlarsiz, istalgan vaqtda istalgancha yordam berishingiz va XP yig'ishingiz mumkin.</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div className="p-6 bg-rose-50/40 rounded-[24px] border border-rose-100/50 hover:bg-rose-50 hover:scale-102 transition-all">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 block mb-2">Erkin ko'mak</span>
+                          <p className="text-[11px] text-slate-500 leading-relaxed font-semibold">Hech qanday kunlik limit yoki cheklovlarsiz, istalgan vaqtda istalgancha yordam berishingiz va XP yig'ishingiz mumkin.</p>
                         </div>
-                        <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 block mb-2">Do'stona ko'mak</span>
-                          <p className="text-xs text-slate-500 leading-relaxed font-semibold">Qo'shnilaringizga yordam berib ularni hayotini osonlashtiring, hamma bir-biriga xohlagancha erkin yordam bera oladi.</p>
+                        <div className="p-6 bg-amber-50/40 rounded-[24px] border border-amber-100/50 hover:bg-amber-50 hover:scale-102 transition-all">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 block mb-2">Do'stona iqlim</span>
+                          <p className="text-[11px] text-slate-500 leading-relaxed font-semibold">Qo'shnilaringizga yordam berib ularni hayotini osonlashtiring, hamma bir-biriga xohlagancha erkin yordam bera oladi.</p>
                         </div>
-                        <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 block mb-2">Hamjamiyat Nazorati</span>
-                          <p className="text-xs text-slate-500 leading-relaxed font-semibold">Mahalla oqsoqollari hamda faollar tizim rivojlanishini kuzatib, ezgu ishlarni qo'llab-quvvatlaydilar.</p>
+                        <div className="p-6 bg-emerald-50/40 rounded-[24px] border border-emerald-100/50 hover:bg-emerald-50 hover:scale-102 transition-all">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 block mb-2">Jamoat Nazorati</span>
+                          <p className="text-[11px] text-slate-500 leading-relaxed font-semibold">Mahalla oqsoqollari hamda jamoat faollari tizim rivojlanishini kuzatib, ezgu ishlarni munosib qo'llab-quvvatlaydilar.</p>
                         </div>
                       </div>
 
-                      <div className="p-4 bg-orange-50 border border-orange-100 rounded-2xl text-[11px] font-extrabold text-orange-850 uppercase tracking-wider text-center">
-                        🚨 Diqqat: Tizimda soxtalik aniqlansa, barcha to'plangan XP bekor qilinadi va akkaunt bloklanadi!
+                      <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[10px] font-bold text-amber-700 uppercase tracking-wider text-center flex items-center justify-center gap-2">
+                        <span>🚨</span> <span>Diqqat: Tizimda soxtalik aniqlansa, barcha to'plangan XP ballar bekor qilinadi!</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Right Column: Global Leaderboard Users */}
                   <div className="lg:col-span-1">
-                    <div className="p-8 bg-slate-950 rounded-[44px] text-white premium-shadow relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+                    <div className="p-6 md:p-8 bg-slate-900 rounded-[40px] text-white border border-slate-800 shadow-[0_24px_60px_-15px_rgba(15,23,42,0.3)] relative overflow-hidden h-full flex flex-col justify-between text-left">
+                      <div className="absolute top-0 right-0 w-36 h-36 bg-blue-600/10 rounded-full -mr-16 -mt-16 blur-3xl pointer-events-none"></div>
                       
-                      <h3 className="font-black text-[12px] uppercase tracking-wider text-blue-400 mb-8 flex items-center gap-2.5">
-                        <Trophy size={18} /> Global Peshqadamlar
-                      </h3>
-                      
-                      <div className="space-y-4">
-                        {topUsers.map((u, i) => (
-                          <div 
-                            key={u.uid} 
-                            onClick={() => setViewingProfile(u)}
-                            className="flex items-center justify-between group/user cursor-pointer p-2 hover:bg-white/5 rounded-2xl transition-all"
-                          >
-                            <div className="flex items-center gap-3.5">
-                              <div className="relative">
-                                <img src={u.photoURL} alt="" className="w-10 h-10 rounded-2xl border border-white/10 grayscale group-hover/user:grayscale-0 transition-all" />
-                                <div className="absolute -top-1.5 -left-1.5 w-5 h-5 bg-white text-slate-900 rounded-lg flex items-center justify-center text-[10px] font-black shadow-lg">
-                                  {i + 1}
+                      <div>
+                        <h3 className="font-display font-black text-xs uppercase tracking-[0.2em] text-blue-400 mb-8 flex items-center gap-2.5">
+                          <Trophy size={16} className="text-yellow-400 animate-bounce" /> Global Peshqadamlar
+                        </h3>
+                        
+                        <div className="space-y-4">
+                          {topUsers.map((u, i) => (
+                            <div 
+                              key={u.uid} 
+                              onClick={() => setViewingProfile(u)}
+                              className="flex items-center justify-between group/user cursor-pointer p-3.5 hover:bg-white/5 rounded-3xl transition-all border border-transparent hover:border-white/5 bg-white/[0.02]"
+                            >
+                              <div className="flex items-center gap-3.5 min-w-0">
+                                <div className="relative shrink-0">
+                                  <img src={u.photoURL} alt="" className="w-11 h-11 rounded-2xl border border-white/10 grayscale group-hover/user:grayscale-0 transition-all object-cover shadow-inner" />
+                                  <div className={cn(
+                                    "absolute -top-2 -left-2 w-6 h-6 rounded-xl flex items-center justify-center text-[10px] font-black shadow-lg",
+                                    i === 0 ? "bg-gradient-to-br from-amber-300 via-yellow-400 to-amber-500 text-slate-950 ring-2 ring-yellow-400" :
+                                    i === 1 ? "bg-gradient-to-br from-slate-200 to-slate-400 text-slate-950 ring-2 ring-slate-300" :
+                                    i === 2 ? "bg-gradient-to-br from-amber-600 to-amber-800 text-white" :
+                                    "bg-slate-800 text-slate-300 border border-slate-700"
+                                  )}>
+                                    {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
+                                  </div>
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-black uppercase tracking-tight text-white/90 group-hover/user:text-blue-400 transition-colors truncate max-w-[125px]">{u.displayName}</p>
+                                  <p className="text-[9px] font-black uppercase tracking-wider text-slate-400/80 mt-1">{u.karma} XP • <span className="text-blue-400">{getKarmaTier(u.karma)}</span></p>
                                 </div>
                               </div>
-                              <div>
-                                <p className="text-xs font-black uppercase tracking-tight text-white/90 truncate max-w-[125px]">{u.displayName}</p>
-                                <p className="text-[8px] font-black uppercase tracking-widest text-blue-400/80 mt-0.5">{u.karma} Karma XP</p>
-                              </div>
+                              
+                              <div className="h-1 w-6 bg-white/5 group-hover/user:w-8 group-hover/user:bg-blue-500 rounded-full transition-all shrink-0"></div>
                             </div>
-                            
-                            <div className="h-0.5 w-6 bg-white/5 group-hover/user:w-10 group-hover/user:bg-blue-500 transition-all"></div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                       
                       <div className="mt-8 pt-6 border-t border-white/5 text-center">
@@ -2978,29 +3368,32 @@ export default function App() {
                             <motion.div
                               layout
                               key={p.id}
-                              className="bg-white border border-slate-200/60 p-6 rounded-[32px] shadow-sm flex flex-col justify-between hover:border-slate-300 transition-all group"
+                              whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                              className="bg-white border border-slate-200/60 p-7.5 rounded-[36px] shadow-[0_8px_30px_rgba(15,23,42,0.02)] flex flex-col justify-between hover:shadow-[0_25px_60px_-15px_rgba(15,23,42,0.06)] hover:border-blue-500/20 transition-all duration-300 group relative overflow-hidden"
                             >
-                              <div>
-                                <div className="flex justify-between items-start gap-3 mb-4">
+                              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-indigo-500/5 to-transparent -mr-12 -mt-12 rounded-full blur-xl pointer-events-none"></div>
+                              
+                              <div className="relative z-10">
+                                <div className="flex justify-between items-start gap-3 mb-5">
                                   <div className="flex items-center gap-2">
                                     <span className={cn(
-                                      "px-3 py-1 rounded-full text-[8.5px] font-black uppercase tracking-wider",
-                                      p.category === 'ecology' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                                      p.category === 'infrastructure' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
-                                      p.category === 'events' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                                      p.category === 'charity' ? 'bg-red-50 text-red-650 border border-red-100 font-sans' :
-                                      'bg-slate-50 text-slate-600 border border-slate-100 font-sans'
+                                      "px-3.5 py-1.5 rounded-full text-[8.5px] font-black uppercase tracking-wider border",
+                                      p.category === 'ecology' ? 'bg-emerald-50 text-emerald-600 border-emerald-100/50' :
+                                      p.category === 'infrastructure' ? 'bg-blue-50 text-blue-600 border-blue-100/50' :
+                                      p.category === 'events' ? 'bg-amber-50 text-amber-600 border-amber-100/50' :
+                                      p.category === 'charity' ? 'bg-red-50 text-red-650 border-red-100/50 font-sans' :
+                                      'bg-slate-50 text-slate-600 border-slate-100 font-sans'
                                     )}>
                                       {p.category === 'ecology' ? 'Ekologiya' : p.category === 'infrastructure' ? 'Infratuzilma' : p.category === 'events' ? 'Tadbirlar' : p.category === 'charity' ? 'Xayriya' : 'Boshqa'}
                                     </span>
-                                    <span className="text-[7.5px] font-black uppercase tracking-widest text-[#B5B5B5]">STATUS: {p.status?.toUpperCase() || 'YANGI'}</span>
+                                    <span className="text-[7.5px] font-black uppercase tracking-widest text-slate-400">STATUS: {p.status?.toUpperCase() || 'YANGI'}</span>
                                   </div>
 
                                   {isAuthor && (
                                     <button
                                       type="button"
                                       onClick={() => handleDeleteProposal(p.id)}
-                                      className="p-1 px-2.5 bg-red-50 hover:bg-red-600 text-red-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer font-sans"
+                                      className="p-1 px-3 bg-red-50 hover:bg-red-600 text-red-500 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer font-sans"
                                       title="Taklifni o'chirish"
                                     >
                                       O'chirish
@@ -3008,29 +3401,34 @@ export default function App() {
                                   )}
                                 </div>
 
-                                <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight line-clamp-2 leading-tight mb-2 group-hover:text-blue-600 transition-colors">{p.title}</h3>
-                                <p className="text-xs text-slate-550 text-slate-500 leading-relaxed font-semibold mb-6">{p.description}</p>
+                                <h3 className="text-base font-display font-black text-slate-900 uppercase tracking-tight line-clamp-2 leading-snug mb-2 group-hover:text-blue-600 transition-colors">{p.title}</h3>
+                                <p className="text-xs text-slate-500 leading-relaxed font-semibold mb-6 break-words limit-paragraph pr-2">{p.description}</p>
                               </div>
 
-                              <div className="flex justify-between items-center border-t border-slate-50 pt-4 mt-auto">
-                                <div className="text-left">
-                                  <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Muallif</p>
-                                  <p className="text-[10px] font-bold text-slate-800 lowercase truncate max-w-[130px] mt-0.5">@{p.creatorName?.split(' ')[0]}</p>
+                              <div className="flex justify-between items-center border-t border-slate-100 pt-5 mt-auto relative z-10">
+                                <div className="text-left flex items-center gap-2">
+                                  <div className="w-6.5 h-6.5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-display font-black text-[9px] uppercase shadow-sm">
+                                    {p.creatorName ? p.creatorName[0] : 'U'}
+                                  </div>
+                                  <div>
+                                    <p className="text-[7.5px] font-black uppercase tracking-widest text-slate-400">Muallif</p>
+                                    <p className="text-[10px] font-black text-slate-800 lowercase truncate max-w-[130px] leading-tight">@{p.creatorName?.split(' ')[0]}</p>
+                                  </div>
                                 </div>
 
                                 <button
                                   type="button"
                                   onClick={() => handleVoteProposal(p.id, p.votes || [])}
                                   className={cn(
-                                    "px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-wide flex items-center gap-1.5 transition-all select-none cursor-pointer font-sans",
+                                    "px-4.5 py-3 rounded-2xl text-[9.5px] font-black uppercase tracking-widest flex items-center gap-2 transition-all select-none cursor-pointer font-sans shadow-sm active:scale-95",
                                     hasVoted 
-                                      ? "bg-rose-500 hover:bg-rose-600 text-white shadow-md shadow-rose-550/10" 
-                                      : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                                      ? "bg-rose-500 hover:bg-rose-600 text-white shadow-md shadow-rose-500/10" 
+                                      : "bg-slate-50 hover:bg-slate-150 text-slate-600 border border-slate-100"
                                   )}
                                 >
                                   <span>{hasVoted ? 'Qo\'llab-quvvatlandi' : 'Qo\'llab-quvvatlash'}</span>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-30"></span>
-                                  <span className="font-extrabold text-[10px]">{p.votes?.length || 0}</span>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-40"></span>
+                                  <span className="font-black text-[11px]">{p.votes?.length || 0}</span>
                                 </button>
                               </div>
                             </motion.div>
@@ -3132,9 +3530,11 @@ export default function App() {
                 </div>
               </motion.div>
             )}
+              </div>
+            </div>
           </div>
-        )}
-      </main>
+        </div>
+      )}
 
       {/* Mobile Tab Switcher - Fixed Floating Bottom Dock */}
       {user && (
@@ -3204,7 +3604,19 @@ export default function App() {
       )}
 
       <AnimatePresence>
-        {isModalOpen && <CreateRequestModal mahallas={mahallas} showNotification={showNotification} onClose={() => setIsModalOpen(false)} />}
+        {isModalOpen && (
+          <CreateRequestModal 
+            mahallas={mahallas} 
+            showNotification={showNotification} 
+            onClose={() => setIsModalOpen(false)} 
+            dataSource={dataSource}
+            onSuccess={() => {
+              if (dataSource === 'pythonanywhere') {
+                fetchApiRequests();
+              }
+            }}
+          />
+        )}
         {isMahallaModalOpen && <CreateMahallaModal showNotification={showNotification} onClose={() => setIsMahallaModalOpen(false)} />}
         {isInviteModalOpen && <InviteMemberModal mahalla={isInviteModalOpen} showNotification={showNotification} onClose={() => setIsInviteModalOpen(null)} />}
         {isChatOpen && <ChatModal request={isChatOpen} onClose={() => setIsChatOpen(null)} />}
@@ -3237,15 +3649,17 @@ export default function App() {
             initial={{ opacity: 0, y: 100, x: '-50%', scale: 0.8 }}
             animate={{ opacity: 1, y: 0, x: '-50%', scale: 1 }}
             exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
+            onClick={() => setNotification(null)}
             className={cn(
-              "fixed bottom-12 left-1/2 z-[200] px-8 py-4 rounded-[24px] font-black text-white premium-shadow flex items-center gap-4 border-2 border-white/20 backdrop-blur-3xl",
+              "fixed bottom-12 left-1/2 z-[200] w-[90%] sm:w-auto sm:max-w-xl px-6 py-4 rounded-[24px] font-black text-white premium-shadow flex items-center gap-4 border-2 border-white/20 backdrop-blur-3xl cursor-pointer select-none transition-transform hover:scale-[1.02] active:scale-95",
               notification.type === 'success' ? "bg-slate-900/90" : "bg-rose-600/90"
             )}
+            title="Bosib yoping"
           >
-            <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shadow-inner", notification.type === 'success' ? "bg-blue-600" : "bg-white/20")}>
+            <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shadow-inner shrink-0", notification.type === 'success' ? "bg-blue-600" : "bg-white/20")}>
                {notification.type === 'success' ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
             </div>
-            <span className="uppercase text-xs tracking-widest leading-none">{notification.message}</span>
+            <span className="uppercase text-xs tracking-wider leading-relaxed">{notification.message}</span>
           </motion.div>
         )}
       </AnimatePresence>

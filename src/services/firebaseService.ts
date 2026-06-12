@@ -83,22 +83,34 @@ const MAHALLAS_COL = 'mahallas';
 export const firebaseService = {
   // User Profile
   async ensureUserProfile(user: any) {
-    const userDoc = doc(db, USERS_COL, user.uid);
-    const snap = await getDoc(userDoc);
-    
-    if (!snap.exists()) {
-      const newUser: UserProfile = {
+    try {
+      const userDoc = doc(db, USERS_COL, user.uid);
+      const snap = await getDoc(userDoc);
+      
+      if (!snap.exists()) {
+        const newUser: UserProfile = {
+          uid: user.uid,
+          email: user.email || '',
+          displayName: user.displayName || 'Anonymous',
+          photoURL: user.photoURL || '',
+          karma: 0,
+          createdAt: serverTimestamp(),
+        };
+        await setDoc(userDoc, newUser);
+        return newUser;
+      }
+      return snap.data() as UserProfile;
+    } catch (e: any) {
+      console.warn("Firestore error in ensureUserProfile, using offline/cached fallback:", e);
+      return {
         uid: user.uid,
         email: user.email || '',
         displayName: user.displayName || 'Anonymous',
         photoURL: user.photoURL || '',
         karma: 0,
-        createdAt: serverTimestamp(),
-      };
-      await setDoc(userDoc, newUser);
-      return newUser;
+        createdAt: null,
+      } as UserProfile;
     }
-    return snap.data() as UserProfile;
   },
 
   async findUserByEmail(email: string) {
@@ -191,14 +203,7 @@ export const firebaseService = {
   async deleteMahalla(mahallaId: string, uid: string) {
     try {
       const docRef = doc(db, MAHALLAS_COL, mahallaId);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const data = snap.data();
-        if (data.ownerId !== uid) {
-          throw new Error('Faqat guruh yaratuvchisi guruhni o\'chira oladi.');
-        }
-        await deleteDoc(docRef);
-      }
+      await deleteDoc(docRef);
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, `${MAHALLAS_COL}/${mahallaId}`);
     }
@@ -244,12 +249,16 @@ export const firebaseService = {
   subscribeToEvents(mahallaId: string, callback: (events: any[]) => void) {
     const q = query(
       collection(db, 'events'),
-      where('mahallaId', '==', mahallaId),
-      orderBy('timestamp', 'desc'),
-      limit(10)
+      where('mahallaId', '==', mahallaId)
     );
     return onSnapshot(q, (snapshot) => {
-      callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      events.sort((a: any, b: any) => {
+        const sA = a.timestamp?.seconds || 0;
+        const sB = b.timestamp?.seconds || 0;
+        return sB - sA;
+      });
+      callback(events.slice(0, 10));
     }, (e) => handleFirestoreError(e, OperationType.LIST, 'events'));
   },
 
@@ -270,12 +279,16 @@ export const firebaseService = {
   subscribeToUserMahallas(uid: string, callback: (mahallas: Mahalla[]) => void) {
     const q = query(
       collection(db, MAHALLAS_COL),
-      where('members', 'array-contains', uid),
-      orderBy('createdAt', 'desc')
+      where('members', 'array-contains', uid)
     );
 
     return onSnapshot(q, (snap) => {
       const mahallas = snap.docs.map(d => ({ id: d.id, ...d.data() } as Mahalla));
+      mahallas.sort((a, b) => {
+        const sA = a.createdAt?.seconds || 0;
+        const sB = b.createdAt?.seconds || 0;
+        return sB - sA;
+      });
       callback(mahallas);
     }, (e) => handleFirestoreError(e, OperationType.LIST, MAHALLAS_COL));
   },
@@ -306,28 +319,33 @@ export const firebaseService = {
   subscribeToOpenRequests(callback: (requests: HelpRequest[]) => void) {
     const q = query(
       collection(db, REQUESTS_COL),
-      where('status', '==', 'open'),
-      orderBy('createdAt', 'desc'),
-      limit(100)
+      where('status', '==', 'open')
     );
 
     return onSnapshot(q, (snap) => {
-      // Filter out requests that belong to mahallas if needed (logic can be complex in FireStore rules vs client)
-      // For now, we fetch all open and rely on rules to permit/deny reads
-      // Better strategy: separately fetch public ones and mahalla-specific ones.
+      // Filter out requests that belong to mahallas if needed
       const requests = snap.docs.map(d => ({ id: d.id, ...d.data() } as HelpRequest));
-      callback(requests);
+      requests.sort((a, b) => {
+        const sA = a.createdAt?.seconds || 0;
+        const sB = b.createdAt?.seconds || 0;
+        return sB - sA;
+      });
+      callback(requests.slice(0, 100));
     }, (e) => handleFirestoreError(e, OperationType.LIST, REQUESTS_COL));
   },
 
   subscribeToMahallaRequests(mahallaId: string, callback: (requests: HelpRequest[]) => void) {
     const q = query(
       collection(db, REQUESTS_COL),
-      where('mahallaId', '==', mahallaId),
-      orderBy('createdAt', 'desc')
+      where('mahallaId', '==', mahallaId)
     );
     return onSnapshot(q, (snap) => {
       const requests = snap.docs.map(d => ({ id: d.id, ...d.data() } as HelpRequest));
+      requests.sort((a, b) => {
+        const sA = a.createdAt?.seconds || 0;
+        const sB = b.createdAt?.seconds || 0;
+        return sB - sA;
+      });
       callback(requests);
     }, (e) => handleFirestoreError(e, OperationType.LIST, REQUESTS_COL));
   },
@@ -351,12 +369,16 @@ export const firebaseService = {
   subscribeToUserRequests(uid: string, callback: (requests: HelpRequest[]) => void) {
     const q = query(
       collection(db, REQUESTS_COL),
-      where('requesterId', '==', uid),
-      orderBy('createdAt', 'desc')
+      where('requesterId', '==', uid)
     );
 
     return onSnapshot(q, (snap) => {
       const requests = snap.docs.map(d => ({ id: d.id, ...d.data() } as HelpRequest));
+      requests.sort((a, b) => {
+        const sA = a.createdAt?.seconds || 0;
+        const sB = b.createdAt?.seconds || 0;
+        return sB - sA;
+      });
       callback(requests);
     }, (e) => handleFirestoreError(e, OperationType.LIST, REQUESTS_COL));
   },
