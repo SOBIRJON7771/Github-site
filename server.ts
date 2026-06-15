@@ -139,20 +139,36 @@ app.all("/api/pythonanywhere/*", async (req, res) => {
         // Construct multipart/form-data to make the video upload requirement happy
         const boundary = "----WebKitFormBoundaryCivicBridge" + Math.random().toString(36).substring(2);
         
-        const fields: Record<string, string> = {
-          name: req.body.name || req.body.title || "Sarluhasiz Murojaat",
-          body: req.body.body || req.body.description || "Tavsif yozilmagan.",
-          applicant: req.body.applicant || "Tashqi foydalanuvchi",
-          phone1: req.body.phone1 || "+998" + Math.floor(900000000 + Math.random() * 100000000).toString(),
-        };
-
-        if (req.body.category) {
-          fields.category = req.body.category;
+        const fields: Record<string, string> = {};
+        
+        if (req.method === "POST") {
+          fields.name = req.body.name || req.body.title || "Sarluhasiz Murojaat";
+          fields.body = req.body.body || req.body.description || "Tavsif yozilmagan.";
+          fields.applicant = req.body.applicant || "Tashqi foydalanuvchi";
+          fields.phone1 = req.body.phone1 || "+998" + Math.floor(900000050 + Math.random() * 90000000).toString();
+          if (req.body.category !== undefined && req.body.category !== null) {
+            fields.category = String(req.body.category);
+          }
+        } else {
+          // PUT or PATCH: Only copy fields that are actually specified in req.body
+          if (req.body.name !== undefined) fields.name = req.body.name;
+          if (req.body.title !== undefined) fields.name = req.body.title;
+          if (req.body.body !== undefined) fields.body = req.body.body;
+          if (req.body.description !== undefined) fields.body = req.body.description;
+          if (req.body.applicant !== undefined) fields.applicant = req.body.applicant;
+          if (req.body.phone1 !== undefined) fields.phone1 = req.body.phone1;
+          if (req.body.phone2 !== undefined) fields.phone2 = req.body.phone2;
+          if (req.body.category !== undefined && req.body.category !== null) {
+            fields.category = String(req.body.category);
+          }
+          if (req.body.status !== undefined) fields.status = req.body.status;
         }
 
         const parts: string[] = [];
         for (const [key, value] of Object.entries(fields)) {
-          parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="${key}"\r\n\r\n${value}\r\n`);
+          if (value !== undefined && value !== null) {
+            parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="${key}"\r\n\r\n${value}\r\n`);
+          }
         }
         
         // Add required video file mock

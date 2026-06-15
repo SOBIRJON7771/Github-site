@@ -109,7 +109,7 @@ const Navbar = ({
               { id: 'forum', label: 'Forum', icon: <MessageSquare size={13} /> },
               { id: 'mahallas', label: 'Mahallalar', icon: <Users size={13} /> },
               { id: 'rewards', label: 'Reyting & Sovrin', icon: <Trophy size={13} /> },
-              { id: 'ai', label: 'AI Ko\'makchi', icon: <Sparkles size={13} className="text-amber-500 animate-pulse" /> },
+              { id: 'ai', label: 'AI Ko\'makchi', icon: <Sparkles size={13} className="text-amber-500 animate-pulse animate-duration-1000" /> },
             ].map(tab => {
               const isActive = mainTab === tab.id;
               return (
@@ -198,6 +198,7 @@ interface RequestCardProps {
   isViewOnly?: boolean;
   showNotification?: (msg: string, type?: 'success' | 'error') => void;
   onUserClick?: (u: UserProfile) => void;
+  onDelete?: (id: string) => void;
 }
 
 const ChatModal = ({ request, onClose }: { request: HelpRequest; onClose: () => void }) => {
@@ -793,8 +794,8 @@ const MahallaWall = ({ mahallaId }: { mahallaId: string }) => {
 };
 
 
-const RequestCard = (props: RequestCardProps & { onOpenChat?: (r: HelpRequest) => void, onComplete?: (r: HelpRequest) => void }) => {
-  const { request, onRespond, isViewOnly = false, showNotification, onOpenChat, onComplete, onUserClick } = props;
+const RequestCard = (props: RequestCardProps & { onOpenChat?: (r: HelpRequest) => void, onComplete?: (r: HelpRequest) => void, onDelete?: (id: string) => void }) => {
+  const { request, onRespond, isViewOnly = false, showNotification, onOpenChat, onComplete, onUserClick, onDelete } = props;
   const isOwner = auth.currentUser?.uid === request.requesterId;
   const isAssignee = auth.currentUser?.uid === request.assigneeId;
   const [completing, setCompleting] = useState(false);
@@ -984,6 +985,15 @@ const RequestCard = (props: RequestCardProps & { onOpenChat?: (r: HelpRequest) =
             <div className="w-full py-4 border-2 border-dashed border-slate-100 text-slate-350 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center select-none bg-slate-50/20">
               Kutilmoqda...
             </div>
+          )}
+
+          {(isOwner || request.id.startsWith("api_")) && onDelete && (
+            <button 
+              onClick={() => onDelete(request.id)}
+              className="w-full py-4 bg-red-50 hover:bg-rose-600 hover:text-white text-rose-600 rounded-2xl font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95 duration-200"
+            >
+              <Trash2 size={13} /> Murojaatni O'chirish
+            </button>
           )}
         </div>
       </div>
@@ -1573,7 +1583,15 @@ export default function App() {
     };
   }, []);
   const [requests, setRequests] = useState<HelpRequest[]>([]);
-  const [dataSource, setDataSource] = useState<'firebase' | 'pythonanywhere'>('firebase');
+  const [dataSource, setDataSource] = useState<'firebase' | 'pythonanywhere'>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('dataSource');
+      if (stored === 'firebase' || stored === 'pythonanywhere') {
+        return stored;
+      }
+    }
+    return 'firebase';
+  });
   const [apiRequests, setApiRequests] = useState<HelpRequest[]>([]);
   const [isApiLoading, setIsApiLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -1912,6 +1930,10 @@ export default function App() {
       return;
     }
     try {
+      if (requestId.startsWith("api_")) {
+        showNotification('Yordam so\'rovi qabul qilindi! Omad.');
+        return;
+      }
       const request = requests.find(r => r.id === requestId);
       await firebaseService.assignRequest(requestId, user.uid);
       
@@ -1932,8 +1954,12 @@ export default function App() {
   };
 
   const handleCompleteRequest = async (request: HelpRequest) => {
-    if (!request.assigneeId) return;
     try {
+      if (request.id.startsWith("api_")) {
+        showNotification("Yordam muvaffaqiyatli topshirildi!", 'success');
+        return;
+      }
+      if (!request.assigneeId) return;
       await firebaseService.completeRequest(request.id, request.assigneeId);
       
       await firebaseService.updateUserKarma(request.assigneeId, 10);
@@ -1954,6 +1980,22 @@ export default function App() {
     } catch (e) {
       console.error(e);
       showNotification('Xatolik yuz berdi.', 'error');
+    }
+  };
+
+  const handleDeleteRequest = async (requestId: string) => {
+    try {
+      if (requestId.startsWith("api_")) {
+        await apiService.deleteApplication(requestId);
+        showNotification("Murojaat muvaffaqiyatli o'chirildi (PythonAnywhere API).", "success");
+        fetchApiRequests();
+      } else {
+        await firebaseService.deleteRequest(requestId);
+        showNotification("Yordam so'rovi o'chirildi (Firebase).", "success");
+      }
+    } catch (e) {
+      console.error(e);
+      showNotification("O'chirishda xatolik yuz berdi.", "error");
     }
   };
 
@@ -2483,43 +2525,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Connection API Selector */}
-                <div className="bg-slate-50 border border-slate-200/60 rounded-[28px] p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-left">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></div>
-                    <div>
-                      <p className="text-xs font-black tracking-tight uppercase text-slate-800 flex items-center gap-1.5 leading-none">
-                        Tizim integratsiyasi: <span className="text-emerald-600 font-extrabold uppercase">Faol ulanish (Connected)</span>
-                      </p>
-                      <p className="text-[10px] text-slate-400 font-medium mt-1">PythonAnywhere hamjamiyat API xizmatiga muvaffaqiyatli ulangan (applicationtest.pythonanywhere.com)</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex bg-slate-200/50 p-1 rounded-2xl shrink-0 gap-1 border border-slate-200">
-                    <button
-                      onClick={() => setDataSource('firebase')}
-                      className={cn(
-                        "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
-                        dataSource === 'firebase' 
-                          ? "bg-white text-slate-900 shadow-sm font-black" 
-                          : "text-slate-500 hover:text-slate-800"
-                      )}
-                    >
-                      Ichki Tarmoq (Firebase)
-                    </button>
-                    <button
-                      onClick={() => setDataSource('pythonanywhere')}
-                      className={cn(
-                        "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5",
-                        dataSource === 'pythonanywhere' 
-                          ? "bg-slate-950 text-white shadow-sm font-black" 
-                          : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
-                      )}
-                    >
-                      <Globe size={11} /> Tashqi API (PythonAnywhere)
-                    </button>
-                  </div>
-                </div>
+
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 text-left">
                   {/* Search and Filters side column */}
@@ -2869,6 +2875,7 @@ export default function App() {
                                     onOpenChat={setIsChatOpen} 
                                     onComplete={handleCompleteRequest}
                                     onUserClick={setViewingProfile}
+                                    onDelete={handleDeleteRequest}
                                   />
                                 ))
                               ) : (
@@ -2900,6 +2907,7 @@ export default function App() {
                               onOpenChat={setIsChatOpen} 
                               onComplete={handleCompleteRequest}
                               onUserClick={setViewingProfile}
+                              onDelete={handleDeleteRequest}
                             />
                           ))}
                           {myRequests.length === 0 && (

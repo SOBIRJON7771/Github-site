@@ -414,6 +414,15 @@ export const firebaseService = {
     }
   },
 
+  async deleteRequest(requestId: string) {
+    try {
+      const docRef = doc(db, REQUESTS_COL, requestId);
+      await deleteDoc(docRef);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `${REQUESTS_COL}/${requestId}`);
+    }
+  },
+
   async checkCollusionLimit(assigneeId: string, requesterId: string): Promise<boolean> {
     try {
       const q = query(
